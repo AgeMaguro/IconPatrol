@@ -375,8 +375,8 @@ const G = { state:'title', sectors:[], cur:null, score:0, lives:3, cleared:0, pa
 const SHIPS = [
   {id:'patrol',  name:'Patrol',  tag:'Balanced all-rounder',      desc:'The standard patrol craft. Even speed, handling, firepower and shields: good at everything, best at nothing.', speed:1,    turn:1,    fire:1,    shield:1,    barrels:0, color:'#77ffff', fill:'#063445'},
   {id:'racer',   name:'Racer',   tag:'Very fast and nimble, fragile', desc:"A stripped-down needle. Much faster, with quick, tight handling, but thin shields and light guns. Dodge, don't tank.", speed:1.38, turn:1.35, fire:0.7,  shield:0.6,  barrels:0, color:'#fbbf24', fill:'#3a2a05'},
-  {id:'fighter', name:'Fighter', tag:'Hits hard, moves quick',     desc:'Swept wings with wingtip cannons that always fire a wide scatter. Faster fire and above-average speed, paid for with a weaker shield.', speed:1.15, turn:1.12, fire:1.35, shield:0.75, barrels:0, wide:true, color:'#f472b6', fill:'#3a0a28'},
-  {id:'bulwark', name:'Bulwark', tag:'Heavy shields, slow',        desc:'A flying fortress. A huge shield that also recharges faster and standard guns, but slow and heavy to turn.', speed:0.78, turn:0.78, fire:1,    shield:1.65, barrels:0, color:'#4ade80', fill:'#06301a'},
+  {id:'fighter', name:'Fighter', tag:'Hits hard, moves quick',     desc:'Swept wings with wingtip cannons. Faster fire and above-average speed, paid for with a weaker shield.', speed:1.15, turn:1.12, fire:1.35, shield:0.75, barrels:0, color:'#f472b6', fill:'#3a0a28'},
+  {id:'bulwark', name:'Bulwark', tag:'Heavy shields, slow',        desc:'A flying fortress. A huge shield that also recharges faster, and a short-range scatter gun alongside its main gun, but slow and heavy to turn.', speed:0.78, turn:0.78, fire:1,    shield:1.65, barrels:0, wide:true, color:'#4ade80', fill:'#06301a'},
   {id:'gunship', name:'Gunship', tag:'Maximum firepower, slow',    desc:'Four forward barrels on a reinforced hull. Starts with twin shots and the fastest fire rate, but takes its time getting anywhere.', speed:0.84, turn:0.82, fire:1.6,  shield:1.1,  barrels:1, color:'#fb923c', fill:'#3a1a05'},
 ];
 let shipId = SHIPS.some(x => x.id === lsGet('iconpatrol.ship')) ? lsGet('iconpatrol.ship') : 'patrol';
@@ -460,7 +460,7 @@ function renderHangar(){
   $('shipName').textContent = sd.name; $('shipName').style.color = sd.color; $('shipTag').textContent = sd.tag; $('shipDesc').textContent = sd.desc;
   $('shipStats').innerHTML = STAT_ROWS.map(([lab, k]) => `<div class="statrow"><span>${lab}</span><div class="statbar"><i style="width:${Math.min(100, sd[k]/1.7*100)}%;background:${sd[k] > 1.05 ? '#4ade80' : sd[k] < 0.95 ? '#f87171' : '#5ff'}"></i></div><span class="v">${Math.round(sd[k]*100)}%</span></div>`).join('')
     + (sd.barrels ? '<div class="statrow"><span>Bonus</span><span style="grid-column:2/4;color:#fde68a">Starts with twin shots (Multi-Barrel level 1)</span></div>' : '')
-    + (sd.wide ? '<div class="statrow"><span>Bonus</span><span style="grid-column:2/4;color:#fde68a">Built-in wide shot (random scatter, never runs out)</span></div>' : '');
+    + (sd.wide ? '<div class="statrow"><span>Bonus</span><span style="grid-column:2/4;color:#fde68a">Built-in scatter shot (never runs out; 75% damage, 75% range)</span></div>' : '');
 }
 function launchRun(){ shipId = hangarSel; lsSet('iconpatrol.ship', shipId); const sec = pendingSectors; pendingSectors = null; startRun(sec); }
 function newRun(sectors){ showHangar(sectors); }
@@ -865,12 +865,13 @@ function update(dt){
       P.cool = S.cool * (P.pw.rapid > 0 ? 0.5 : 1);
       const shots = S.barrel === 0 ? [[0,0]] : S.barrel === 1 ? [[0,-5],[0,5]] : [[-0.12,0],[0,0],[0.12,0]];
       // wide shot (pickup, or built into the Fighter): two to three pellets scattered at random in a cone each volley
-      const wide = P.pw.spread > 0 || shipDef().wide;
-      if (wide){ for (const side of [-1, 1]) shots.push([side*(0.1 + Math.random()*0.32), 0, 0.85 + Math.random()*0.25]);
-        if (Math.random() < 0.35) shots.push([(Math.random()*2 - 1)*0.42, 0, 0.85 + Math.random()*0.25]); }
-      for (const [da, off, spd = 1] of shots){
+      // Bulwark's built-in scatter is weaker (75% damage, 75% range); a W pickup is full strength
+      const wide = P.pw.spread > 0 || shipDef().wide, wk = P.pw.spread > 0 ? 1 : 0.75;
+      if (wide){ for (const side of [-1, 1]) shots.push([side*(0.1 + Math.random()*0.32), 0, 0.85 + Math.random()*0.25, wk]);
+        if (Math.random() < 0.35) shots.push([(Math.random()*2 - 1)*0.42, 0, 0.85 + Math.random()*0.25, wk]); }
+      for (const [da, off, spd = 1, wf = 1] of shots){
         const a = P.a + da, px = -sa*off, py = ca*off;
-        bullets.push({x:P.x+ca*14+px, y:P.y+sa*14+py, vx:Math.cos(a)*560*spd+P.vx*0.4, vy:Math.sin(a)*560*spd+P.vy*0.4, life:0.9});
+        bullets.push({x:P.x+ca*14+px, y:P.y+sa*14+py, vx:Math.cos(a)*560*spd+P.vx*0.4, vy:Math.sin(a)*560*spd+P.vy*0.4, life:0.9*wf, dmg:wf});
       }
       SFX.shoot();
     }
@@ -932,20 +933,20 @@ function update(dt){
   // collisions: player bullets
   for (const b of bullets){
     if (b.enemy || b.life <= 0) continue;
-    for (const v of viruses){ if (v.hp>0 && dist(b,v) < 15){ b.life=0; v.hp--; SFX.hit(); if (v.hp<=0) killVirus(v); break; } }
+    for (const v of viruses){ if (v.hp>0 && dist(b,v) < 15){ b.life=0; v.hp -= b.dmg || 1; SFX.hit(); if (v.hp<=0) killVirus(v); break; } }
     if (b.life <= 0) continue;
     for (const ic of icons){
       if (ic.dead || dist(b,ic) > 26) continue;
       b.life = 0;
       if (ic.infected){
-        ic.hp--; ic.flash = 0.1; SFX.hit();
+        ic.hp -= b.dmg || 1; ic.flash = 0.1; SFX.hit();
         if (ic.hp <= 0){ ic.infected = false; ic.hp = 3; burst(ic.x,ic.y,'#4ade80',20); addScore(50); dropAt(ic.x, ic.y, 3, 0.25); msg('CLEANSED +50', ic.x, ic.y-26, '#4ade80'); SFX.cleanse(); ic.vx*=0.2; ic.vy*=0.2; }
       } else {
         ic.dead = true; burst(ic.x,ic.y,'#ffcc66',24); addScore(-25); msg('DELETED ' + short(ic.f.name) + '  −25', ic.x, ic.y-26, '#fc6'); SFX.del();
       }
       break;
     }
-    if (b.life > 0 && boss && dist(b,boss) < 52){ b.life = 0; boss.hp--; boss.flash = 0.08; SFX.hit(); addScore(10);
+    if (b.life > 0 && boss && dist(b,boss) < 52){ b.life = 0; boss.hp -= b.dmg || 1; boss.flash = 0.08; SFX.hit(); addScore(10);
       if (boss.hp <= 0){ burst(boss.x,boss.y,'#f35',120,420); burst(boss.x,boss.y,'#fff',60,300); SFX.boom(); setTimeout(SFX.boom,200); setTimeout(SFX.boom,450);
         addScore(5000); boss = null; viruses.forEach(v=>{burst(v.x,v.y,'#e040fb',10); v.hp=0;}); bullets.forEach(b=>{ if (b.enemy) b.life=0; });
         setBanner('INNER DEMON DESTROYED', 3); later(3.2, () => showEnd(true)); } }
