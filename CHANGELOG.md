@@ -11,6 +11,9 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.17 - 2026-11-03
+- 3D: slower standard flight speed. The base top speed (100% throttle) is now 109, which was the Fighter's comfortable 70% cruise (was 135); each ship still scales by its Speed stat: Racer 150, Fighter 125, Patrol 109, Gunship 92, Bulwark 85. Engine upgrades and redline boost (x1.7) still stack on top. 2D unchanged.
+
 ## 1.0.16 - 2026-11-03
 - Fighter: both wingtip cannons fire together in one volley (no more alternating), at half the fire rate. Multi-Barrel upgrades fire their full pattern from each wing.
 

@@ -473,7 +473,7 @@ function freshUpgrades(){ const u = {}; UPGRADES.forEach(x => u[x.k] = 0); retur
 function stats(){
   const u = G.up, sd = shipDef();
   return {
-    thrust: 150*(1+0.18*u.engine)*sd.speed, top: 135*(1+0.12*u.engine)*sd.speed,
+    thrust: 150*(1+0.18*u.engine)*sd.speed, top: 109*(1+0.12*u.engine)*sd.speed,   // 109 = the Fighter's comfortable 70% cruise (135 x 1.15 x 0.7) as everyone's 100%
     maxShield: Math.round([100,130,160,200][u.shield]*sd.shield), regen: [2.5,5,7.5,10][u.regen]*sd.shield,
     cool: [0.15,0.12,0.10,0.085][u.blaster]/sd.fire, barrel: Math.min(2, u.barrel + sd.barrels),
     tank: [100,140,180,220][u.tank], tankRegen: [11,14,17,20][u.tank],
