@@ -3203,6 +3203,18 @@ function drawHUD(t){
       }
     }
   }
+  // aim-lead marker: where to point so shots meet the target (its motion and your drift included).
+  // Shown while tracking AND locked, in its own color (white core, gold ring) so it never reads as an enemy.
+  if (P.alive && TGT && tp){
+    const lt = TGT.d/520, lead = project(_apV.copy(TGT.pos).addScaledVector(TGT.vel, lt).addScaledVector(P.vel, -lt));
+    if (lead){
+      const sep = Math.hypot(lead.x - tp.x, lead.y - tp.y), la = TGT.locked ? 1 : 0.85;
+      if (sep > 3){ hx.strokeStyle = `rgba(255,212,0,${0.45*la})`; hx.lineWidth = 1; hx.setLineDash([3,3]); hx.beginPath(); hx.moveTo(tp.x, tp.y); hx.lineTo(lead.x, lead.y); hx.stroke(); hx.setLineDash([]); }
+      hx.fillStyle = 'rgba(0,8,16,.7)'; hx.beginPath(); hx.arc(lead.x, lead.y, 6.5, 0, 7); hx.fill();
+      hx.strokeStyle = `rgba(255,212,0,${la})`; hx.lineWidth = 2; hx.beginPath(); hx.arc(lead.x, lead.y, 5, 0, 7); hx.stroke();
+      hx.fillStyle = `rgba(255,255,255,${la})`; hx.beginPath(); hx.arc(lead.x, lead.y, 2, 0, 7); hx.fill();
+    }
+  }
   // (3)(4) crosshair: drawn last, bright with a dark outline; slides onto a locked target and turns red
   if (ap){
     const locked = !!(TGT && TGT.locked && tp), want = locked ? tp : ap, ks = 1 - Math.exp(-hudDt/0.06);
@@ -3221,9 +3233,6 @@ function drawHUD(t){
       // true nose stays marked with a small dot; lead dot shows where to put shots on a mover
       hx.fillStyle = 'rgba(0,8,16,.7)'; hx.beginPath(); hx.arc(ap.x, ap.y, 4, 0, 7); hx.fill();
       hx.fillStyle = '#aaffff'; hx.beginPath(); hx.arc(ap.x, ap.y, 2.2, 0, 7); hx.fill();
-      const lt = TGT.d/520, lead = project(_apV.copy(TGT.pos).addScaledVector(TGT.vel, lt).addScaledVector(P.vel, -lt));
-      if (lead){ hx.fillStyle = 'rgba(255,80,110,.9)'; hx.beginPath(); hx.arc(lead.x, lead.y, 3, 0, 7); hx.fill();
-        hx.strokeStyle = 'rgba(255,80,110,.4)'; hx.lineWidth = 1; hx.beginPath(); hx.moveTo(x, y); hx.lineTo(lead.x, lead.y); hx.stroke(); }
       hx.font = 'bold 11px Consolas,monospace'; hx.textAlign = 'center'; hx.fillStyle = Math.floor(t*6)%2 ? '#ff6680' : '#ffb3c0';
       hx.fillText('LOCK', x, y - r - 16);
       if (hudMode !== 'minimal'){ hx.fillStyle = '#fbb'; hx.font = '10px Consolas,monospace'; hx.fillText(`${TGT.label} · ${Math.round(TGT.d)}m`, x, y + r + 24); }
