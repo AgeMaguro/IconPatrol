@@ -41,7 +41,7 @@ public class Updater {
     private final MainActivity act;
     private volatile String apkUrl = null, latestName = null;
     private volatile long latestCode = -1;
-    private volatile boolean busy = false;
+    private volatile boolean busy = false, triedSystem = false;
 
     Updater(MainActivity act) { this.act = act; }
 
@@ -104,7 +104,7 @@ public class Updater {
             });
             return;
         }
-        busy = true;
+        busy = true; triedSystem = false;
         new Thread(() -> {
             File apk = new File(act.getCacheDir(), "update.apk");
             try {
@@ -113,7 +113,7 @@ public class Updater {
                 PackageInstaller pi = act.getPackageManager().getPackageInstaller();
                 PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
                 params.setAppPackageName(act.getPackageName());
-                if (Build.VERSION.SDK_INT >= 31) params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED);
+                if (Build.VERSION.SDK_INT >= 31) params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_REQUIRED);
                 int id = pi.createSession(params);
                 PackageInstaller.Session session = pi.openSession(id);
                 try (InputStream in = new FileInputStream(apk); OutputStream out = session.openWrite("base.apk", 0, apk.length())) {
@@ -154,6 +154,10 @@ public class Updater {
         } else if (st != -999) {
             String msg = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
             Log.w(TAG, "Install status " + st + ": " + msg);
+            // Android refused the in-app (self) update, e.g. "Self update is blocked by unknown source package" for
+            // sideloaded apps. Hand the same downloaded APK to the system installer instead (works like a browser install).
+            if (st != PackageInstaller.STATUS_FAILURE_CONFLICT && st != PackageInstaller.STATUS_FAILURE_STORAGE
+                    && st != PackageInstaller.STATUS_FAILURE_INCOMPATIBLE && !triedSystem && systemInstall()) return;
             String why = st == PackageInstaller.STATUS_FAILURE_ABORTED ? "install cancelled"
                     : st == PackageInstaller.STATUS_FAILURE_BLOCKED ? "install blocked (Play Protect or a device policy)"
                     : st == PackageInstaller.STATUS_FAILURE_CONFLICT ? "install conflict (different signing key: uninstall once, then install from the browser)"
@@ -207,6 +211,27 @@ public class Updater {
     }
 
     private void error(String msg) { status("{\"state\":\"error\",\"msg\":" + JSONObject.quote(msg) + ",\"current\":" + JSONObject.quote(currentName()) + "}"); }
+
+    /** Opens Android's own installer on the downloaded APK. Returns false if it couldn't be started. */
+    boolean systemInstall() {
+        File apk = new File(act.getCacheDir(), "update.apk");
+        if (!apk.exists() || apk.length() < 10000) return false;
+        triedSystem = true;
+        status("{\"state\":\"installing\",\"system\":true}");
+        act.runOnUiThread(() -> {
+            try {
+                @SuppressWarnings("deprecation")
+                Intent i = new Intent(Intent.ACTION_INSTALL_PACKAGE).setDataAndType(ApkProvider.URI, "application/vnd.android.package-archive")
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        .putExtra(Intent.EXTRA_INSTALLER_PACKAGE_NAME, act.getPackageName());
+                act.startActivity(i);
+            } catch (Exception e) {
+                Log.e(TAG, "System installer failed", e);
+                error("Android blocked the update; use the browser link instead");
+            }
+        });
+        return true;
+    }
 
     /** Fallback: open the newest APK link in the browser; Android installs it from the download. */
     void openInBrowser() {

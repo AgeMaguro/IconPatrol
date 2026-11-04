@@ -11,6 +11,11 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.19 - 2026-11-03
+- Updater: Android blocked in-app updates with "INSTALL_FAILED_ABORTED: Self update is blocked by unknown source package" (apps installed from a browser download may not replace themselves). When Android refuses, the app now automatically hands the downloaded APK to Android's own installer ("Do you want to update this app?" -> Update), the same as installing from the browser. New `ApkProvider` serves the downloaded APK to the installer, read-only.
+- No longer asks Android to skip the confirm screen (it requires the app to be its own installer, which a sideloaded app isn't).
+- 1.0.18 and older still have the old updater: install 1.0.19 once from the browser link.
+
 ## 1.0.18 - 2026-11-03
 - 3D HUD declutter, so the crosshair is easy to find:
   - Crosshair is drawn last, bright with a dark outline and a center dot.
