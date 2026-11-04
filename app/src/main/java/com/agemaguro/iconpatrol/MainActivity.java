@@ -131,6 +131,7 @@ public class MainActivity extends Activity {
         web.addJavascriptInterface(new Object() {
             @JavascriptInterface public void checkForUpdate(boolean userAsked) { updater.check(userAsked); }
             @JavascriptInterface public void installUpdate() { updater.install(); }
+            @JavascriptInterface public void openUpdateInBrowser() { updater.openInBrowser(); }
             @JavascriptInterface public String version() { return updater.currentName(); }
         }, "IconApp");
         setContentView(web);

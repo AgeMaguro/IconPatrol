@@ -142,14 +142,26 @@ public class Updater {
         if (st == PackageInstaller.STATUS_PENDING_USER_ACTION) {
             Intent confirm = i.getParcelableExtra(Intent.EXTRA_INTENT);
             if (confirm != null) {
-                confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                try { act.startActivity(confirm); } catch (Exception e) { error("couldn't open the installer"); }
-            }
+                // Start it from our activity, in our task. Adding FLAG_ACTIVITY_NEW_TASK here made some phones
+                // cancel the install immediately (STATUS_FAILURE_ABORTED) before the confirm screen could show.
+                final Intent c = confirm;
+                act.runOnUiThread(() -> {
+                    try { act.startActivity(c); } catch (Exception e) { Log.e(TAG, "Couldn't open the installer", e); error("couldn't open the installer"); }
+                });
+            } else error("Android didn't send the confirm screen");
         } else if (st == PackageInstaller.STATUS_SUCCESS) {
             status("{\"state\":\"done\"}");   // Android restarts the app with the new version
         } else if (st != -999) {
             String msg = i.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
-            error(st == PackageInstaller.STATUS_FAILURE_ABORTED ? "install cancelled" : ("install failed" + (msg != null ? " (" + msg + ")" : "")));
+            Log.w(TAG, "Install status " + st + ": " + msg);
+            String why = st == PackageInstaller.STATUS_FAILURE_ABORTED ? "install cancelled"
+                    : st == PackageInstaller.STATUS_FAILURE_BLOCKED ? "install blocked (Play Protect or a device policy)"
+                    : st == PackageInstaller.STATUS_FAILURE_CONFLICT ? "install conflict (different signing key: uninstall once, then install from the browser)"
+                    : st == PackageInstaller.STATUS_FAILURE_STORAGE ? "not enough storage"
+                    : st == PackageInstaller.STATUS_FAILURE_INVALID ? "the downloaded APK was invalid"
+                    : st == PackageInstaller.STATUS_FAILURE_INCOMPATIBLE ? "incompatible with this phone"
+                    : "install failed";
+            error(why + " [code " + st + (msg != null ? ": " + msg : "") + "]");
         }
     }
 
@@ -194,7 +206,17 @@ public class Updater {
         if (got < 10000) throw new Exception("download was too small (" + got + " bytes)");
     }
 
-    private void error(String msg) { status("{\"state\":\"error\",\"msg\":" + JSONObject.quote(msg) + "}"); }
+    private void error(String msg) { status("{\"state\":\"error\",\"msg\":" + JSONObject.quote(msg) + ",\"current\":" + JSONObject.quote(currentName()) + "}"); }
+
+    /** Fallback: open the newest APK link in the browser; Android installs it from the download. */
+    void openInBrowser() {
+        act.runOnUiThread(() -> {
+            try {
+                act.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/" + REPO + "/releases/latest/download/IconPatrol.apk"))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (Exception e) { Log.w(TAG, "Couldn't open the browser", e); }
+        });
+    }
 
     void status(final String json) { act.sendToPage("window.__updateStatus && window.__updateStatus(" + json + ")"); }
 }

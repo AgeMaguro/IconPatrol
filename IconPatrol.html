@@ -1069,9 +1069,14 @@ window.__updateStatus = st => {
     permission: 'One-time step: allow "Install unknown apps" for Icon Patrol, come back, then tap the button again.',
     error: 'Update problem: ' + (st.msg || 'unknown') + '.',
   }[st.state] || '';
+  if (st.state === 'error' && window.IconApp && IconApp.openUpdateInBrowser){
+    b.textContent = '⬆ Try again';
+    const a = document.createElement('a'); a.href = '#'; a.textContent = ' Or download it in the browser instead'; a.style.color = '#fde68a';
+    a.onclick = e => { e.preventDefault(); IconApp.openUpdateInBrowser(); }; n.appendChild(a);
+  }
 };
 if (window.IconApp){
-  $('updBtn').onclick = () => { const st = window.__lastUpdate || {}; if (st.state === 'available') IconApp.installUpdate(); else IconApp.checkForUpdate(true); };
+  $('updBtn').onclick = () => { const st = window.__lastUpdate || {}; if (st.state === 'available' || st.state === 'error') IconApp.installUpdate(); else IconApp.checkForUpdate(true); };
   if (window.__lastUpdate) window.__updateStatus(window.__lastUpdate);
   else { window.__updateStatus({state:'idle', current: IconApp.version()}); setTimeout(() => IconApp.checkForUpdate(false), 1200); }
 }
@@ -2381,9 +2386,14 @@ window.__updateStatus = st => {
     permission: 'One-time step: allow "Install unknown apps" for Icon Patrol, come back, then tap the button again.',
     error: 'Update problem: ' + (st.msg || 'unknown') + '.',
   }[st.state] || '';
+  if (st.state === 'error' && window.IconApp && IconApp.openUpdateInBrowser){
+    b.textContent = '⬆ Try again';
+    const a = document.createElement('a'); a.href = '#'; a.textContent = ' Or download it in the browser instead'; a.style.color = '#fde68a';
+    a.onclick = e => { e.preventDefault(); IconApp.openUpdateInBrowser(); }; n.appendChild(a);
+  }
 };
 if (window.IconApp){
-  $('updBtn').onclick = () => { const st = window.__lastUpdate || {}; if (st.state === 'available') IconApp.installUpdate(); else IconApp.checkForUpdate(true); };
+  $('updBtn').onclick = () => { const st = window.__lastUpdate || {}; if (st.state === 'available' || st.state === 'error') IconApp.installUpdate(); else IconApp.checkForUpdate(true); };
   if (window.__lastUpdate) window.__updateStatus(window.__lastUpdate);
   else { window.__updateStatus({state:'idle', current: IconApp.version()}); setTimeout(() => IconApp.checkForUpdate(false), 1200); }
 }

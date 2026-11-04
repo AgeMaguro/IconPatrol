@@ -11,6 +11,11 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.13 - 2026-11-03
+- Updater fix: the in-app update was being cancelled before Android's "Update this app?" screen could appear (the confirm screen was opened in a new task). It now opens inside the app's own task.
+- Update errors now say why (blocked by Play Protect, signing conflict, storage, etc. plus Android's code), the button becomes "Try again", and there's a "download it in the browser instead" link as a fallback.
+- Note: 1.0.11/1.0.12 still have the old updater, so install 1.0.13 once from the browser link; updates after that use the fixed in-app button.
+
 ## 1.0.12 - 2026-11-03
 - Ship hangar: before each run (scan or demo) a "Choose your ship" screen shows five ships with stat bars, a description and a preview (rotating 3D model in 3D mode). Your pick is remembered (`iconpatrol.ship`) and shown on the drive map.
   - Patrol: the original ship, balanced (100% across the board).
