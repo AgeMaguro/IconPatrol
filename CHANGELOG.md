@@ -11,6 +11,14 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.18 - 2026-11-03
+- 3D HUD declutter, so the crosshair is easy to find:
+  - Crosshair is drawn last, bright with a dark outline and a center dot.
+  - Lock-on is merged into the crosshair: inside the firing angle it slides onto the target and turns red (no second reticle). A small dot keeps marking your true nose, plus the lead dot.
+  - Lead gates are corner brackets only (no full boxes).
+  - Clean mode: gates show only while turning or drifting off the nose, and fade near the crosshair; the gun pipper only shows once it separates from the crosshair.
+  - New HUD detail setting: Clean (default) / Full (every guide always, plus the 0.5s label) / Minimal (crosshair, lock-on, navball). Key H, controller R3 (flight mode moved off R3: key G or Settings), touch "HUD" button, or Settings. Saved as `iconpatrol3d.hud`.
+
 ## 1.0.17 - 2026-11-03
 - 3D: slower standard flight speed. The base top speed (100% throttle) is now 109, which was the Fighter's comfortable 70% cruise (was 135); each ship still scales by its Speed stat: Racer 150, Fighter 125, Patrol 109, Gunship 92, Bulwark 85. Engine upgrades and redline boost (x1.7) still stack on top. 2D unchanged.
 

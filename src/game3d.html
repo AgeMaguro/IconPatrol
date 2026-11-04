@@ -147,7 +147,7 @@
     <div class="tlever" id="tThr"><div class="tlRed"><i>REDLINE</i></div><div class="tlFill"></div><div class="tl100"></div><div class="tlKnob"></div><div class="tlLab">0%</div></div>
     <div class="tb sm" data-k="rollR">⟳</div><div class="tb" data-k="brake">BRAKE</div>
   </div>
-  <div class="ttop"><div class="tt" id="tView">VIEW: 1ST</div><div class="tt" id="tFlight">FLT: ASSIST</div><div class="tt" id="tAuto">AUTO-FIRE ON</div><div class="tt" id="tMap">MAP</div><div class="tt" id="tPause">❚❚</div></div>
+  <div class="ttop"><div class="tt" id="tView">VIEW: 1ST</div><div class="tt" id="tFlight">FLT: ASSIST</div><div class="tt" id="tHud">HUD: CLEAN</div><div class="tt" id="tAuto">AUTO-FIRE ON</div><div class="tt" id="tMap">MAP</div><div class="tt" id="tPause">❚❚</div></div>
 </div>
 
 <div class="overlay show" id="title">
@@ -178,6 +178,7 @@
         <b>Click game</b><span>steer with mouse, left-click fires</span>
         <b>V</b><span>switch first-person / chase view</span>
         <b>G</b><span>flight mode: assist / coordinated / pure drift</span>
+        <b>H</b><span>HUD detail: full / clean / minimal</span>
         <b>P / Esc</b><span>pause menu (settings, leave sector)</span>
         <b>M · F</b><span>mute · show FPS</span>
       </div>
@@ -188,7 +189,7 @@
         <b>RT / LT</b><span>throttle up / down (LT at 0% brakes)</span>
         <b>A / X</b><span>fire</span>
         <b>Y</b><span>switch view</span>
-        <b>R3 (click right stick)</b><span>flight mode</span>
+        <b>R3 (click right stick)</b><span>HUD detail: full / clean / minimal</span>
         <b>B (hold)</b><span>redline boost</span>
         <b>Start</b><span>pause menu</span>
         <b>Back / View</b><span>leave sector (drive map)</span>
@@ -330,6 +331,12 @@ let flightMode = FLIGHT_MODES.includes(lsGet('iconpatrol3d.flight2')) ? lsGet('i
 function showFlight(){ renderSettings(); const t = document.getElementById('tFlight'); if (t) t.textContent = 'FLT: ' + FLIGHT_NAME[flightMode].split(' ').pop().toUpperCase(); }
 function cycleFlight(){ flightMode = FLIGHT_MODES[(FLIGHT_MODES.indexOf(flightMode)+1) % 3]; lsSet('iconpatrol3d.flight2', flightMode); showFlight();
   if (G.state === 'play') toast({assist:'Flight: ASSIST · bank to turn, momentum follows the nose', coord:'Flight: COORDINATED · turns bank automatically, ship drifts', drift:'Flight: PURE DRIFT · no assists'}[flightMode]); }
+// HUD detail: full = every guide always; clean = guides only when useful and faded near the crosshair; minimal = crosshair, lock-on, navball
+const HUD_MODES = ['full','clean','minimal'], HUD_NAME = {full:'Full', clean:'Clean', minimal:'Minimal'};
+let hudMode = HUD_MODES.includes(lsGet('iconpatrol3d.hud')) ? lsGet('iconpatrol3d.hud') : 'clean';
+function showHud(){ renderSettings(); const t = document.getElementById('tHud'); if (t) t.textContent = 'HUD: ' + HUD_NAME[hudMode].toUpperCase(); }
+function cycleHud(){ hudMode = HUD_MODES[(HUD_MODES.indexOf(hudMode) + 1) % HUD_MODES.length]; lsSet('iconpatrol3d.hud', hudMode); showHud();
+  if (G.state === 'play') toast({full:'HUD: FULL · every flight guide shown', clean:'HUD: CLEAN · guides only while turning or drifting', minimal:'HUD: MINIMAL · crosshair, lock-on and navball'}[hudMode]); }
 function toggleView(){ fpv = !fpv; lsSet('iconpatrol3d.view', fpv ? 'fp' : 'chase'); showView(); if (G.state === 'play') toast(fpv ? 'First-person view' : 'Chase camera'); }
 showHi(); showInv(); showView(); showFlight();
 let actx = null, muted = lsGet('iconpatrol.muted') === '1';
@@ -760,6 +767,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyM'){ muted = !muted; lsSet('iconpatrol.muted', muted?'1':'0'); renderSettings(); }
   if (e.code === 'KeyV') toggleView();
   if (e.code === 'KeyG') cycleFlight();
+  if (e.code === 'KeyH') cycleHud();
   if (e.code === 'KeyF'){ showFps = !showFps; renderSettings(); }
   if (e.code === 'KeyX' && G.state === 'play'){ throttle = 0; toast('Throttle cut'); }
   if (e.code === 'KeyI'){ invert = !invert; lsSet('iconpatrol3d.inv', invert?'1':'0'); showInv(); toast('Invert pitch: ' + (invert?'ON':'OFF')); }
@@ -844,7 +852,7 @@ function pollPad(dt){
     if (pressed(9)) G.paused = true;
     if (pressed(8)) abortToMap();
     if (pressed(3)) toggleView();
-    if (pressed(11)) cycleFlight();
+    if (pressed(11)) cycleHud();
   } else {
     if (pressed(1) && settingsOpen){ closeSettings(); padPrev = gp.buttons.map((_,i) => b(i)); return; }
     if (pressed(9) && G.state === 'play'){ if (settingsOpen) closeSettings(); G.paused = false; padPrev = gp.buttons.map((_,i) => b(i)); return; }
@@ -874,6 +882,7 @@ var settingsOpen = null, pauseShown = false;   // var: read by renderSettings() 
 function settingItems(){
   const items = [];
   items.push({lab:'View', desc:'First person (cockpit) or chase camera. Key V · controller Y.', val:() => fpv ? 'First person' : 'Chase cam', act:toggleView});
+  items.push({lab:'HUD detail', desc:'Clean (default): flight guides only while turning or drifting, faded near the crosshair. Full: every guide always. Minimal: crosshair, lock-on and navball. Key H · controller R3.', val:() => HUD_NAME[hudMode], act:cycleHud});
   items.push({lab:'Flight mode', desc:'Pure drift (default): no assists, real momentum. Assist and Coordinated are experimental. Key G.', val:() => FLIGHT_NAME[flightMode], act:cycleFlight});
   items.push({lab:'Invert pitch', desc:'Push up to dive (flight-sim style). Key I.', val:() => invert ? 'On' : 'Off', act:() => { invert = !invert; lsSet('iconpatrol3d.inv', invert?'1':'0'); showInv(); }});
   items.push({lab:'Auto-fire', desc:'Touch screens: fires when a virus or infected icon is lined up.', val:() => TC.auto ? 'On' : 'Off', act:() => { TC.auto = !TC.auto; lsSet('iconpatrol.autofire', TC.auto ? '1' : '0'); const ab = document.getElementById('tAuto'); if (ab) ab.textContent = 'AUTO-FIRE ' + (TC.auto ? 'ON' : 'OFF'); }});
@@ -954,6 +963,7 @@ function buildFromPicked(list){
   });
   $('tFlight').addEventListener('pointerdown', e => { e.preventDefault(); cycleFlight(); });
   $('tView').addEventListener('pointerdown', e => { e.preventDefault(); toggleView(); });
+  $('tHud').addEventListener('pointerdown', e => { e.preventDefault(); cycleHud(); }); showHud();
   $('tPause').addEventListener('pointerdown', e => { e.preventDefault(); if (G.state === 'play') G.paused = !G.paused; });
   $('tMap').addEventListener('pointerdown', e => { e.preventDefault(); abortToMap(); });
   const ab = $('tAuto'), showAuto = () => ab.textContent = 'AUTO-FIRE ' + (TC.auto ? 'ON' : 'OFF'); showAuto();
@@ -1170,25 +1180,28 @@ function smoothGates(prev, next, k){
   for (let i=0;i<next.length;i++){ prev[i].p.lerp(next[i].p, k); prev[i].r.lerp(next[i].r, k).normalize(); prev[i].u.lerp(next[i].u, k).normalize(); }
   return prev;
 }
-function drawGates(gates, isGhost, fade){
+function drawGates(gates, isGhost, fade, ap, use){
   for (let g = gates.length-1; g >= 0; g--){
     const G2 = gates[g], hw = 7, hh = 4.5, corners = [[-1,-1],[1,-1],[1,1],[-1,1]];
     const pts = [];
     for (const [cx, cy] of corners){ const sp = project(_pc.copy(G2.p).addScaledVector(G2.r, cx*hw).addScaledVector(G2.u, cy*hh)); if (!sp){ pts.length = 0; break; } pts.push(sp); }
     if (pts.length !== 4) continue;
-    const a = [0.85, 0.6, 0.38][g] * fade * (isGhost ? 0.55 : 1);
-    const col = isGhost ? `rgba(160,225,255,${a})` : `rgba(190,255,150,${a})`;
-    hx.strokeStyle = col; hx.lineWidth = isGhost ? 1.2 : (g === 0 ? 2 : 1.5);
-    if (isGhost) hx.setLineDash([4,4]);
-    hx.beginPath(); hx.moveTo(pts[0].x, pts[0].y); for (let q=1;q<4;q++) hx.lineTo(pts[q].x, pts[q].y); hx.closePath(); hx.stroke();
-    hx.setLineDash([]);
-    if (!isGhost){
-      hx.lineWidth = g === 0 ? 2.5 : 2; hx.beginPath();
-      for (let q=0;q<4;q++){ const c = pts[q], nx2 = pts[(q+1)%4], pv2 = pts[(q+3)%4];
-        hx.moveTo(c.x + (nx2.x-c.x)*0.22, c.y + (nx2.y-c.y)*0.22); hx.lineTo(c.x, c.y); hx.lineTo(c.x + (pv2.x-c.x)*0.22, c.y + (pv2.y-c.y)*0.22); }
-      hx.stroke();
-      if (g === 0){ const w = Math.abs(pts[1].x - pts[0].x); if (w > 40){ hx.fillStyle = col; hx.font = '9px Consolas,monospace'; hx.textAlign = 'center'; hx.fillText('0.5s', (pts[2].x+pts[3].x)/2, Math.max(pts[2].y, pts[3].y) + 11); } }
+    let a = [0.75, 0.52, 0.34][g] * fade * (isGhost ? 0.5 : 1);
+    if (hudMode === 'clean'){
+      // (1) fade out near the crosshair, (5) only while turning/drifting
+      const mx = (pts[0].x+pts[1].x+pts[2].x+pts[3].x)/4, my = (pts[0].y+pts[1].y+pts[2].y+pts[3].y)/4;
+      const near = ap ? Math.max(0, Math.min(1, (Math.hypot(mx - ap.x, my - ap.y) - 14)/40)) : 1;
+      a *= use * (0.3 + 0.7*near);
     }
+    if (a < 0.02) continue;
+    const col = isGhost ? `rgba(160,225,255,${a})` : `rgba(190,255,150,${a})`;
+    // (2) corner brackets only, no full box
+    hx.strokeStyle = col; hx.lineWidth = isGhost ? 1.2 : (g === 0 ? 2.2 : 1.7); hx.beginPath();
+    const k = isGhost ? 0.16 : 0.24;
+    for (let q=0;q<4;q++){ const c = pts[q], nx2 = pts[(q+1)%4], pv2 = pts[(q+3)%4];
+      hx.moveTo(c.x + (nx2.x-c.x)*k, c.y + (nx2.y-c.y)*k); hx.lineTo(c.x, c.y); hx.lineTo(c.x + (pv2.x-c.x)*k, c.y + (pv2.y-c.y)*k); }
+    hx.stroke();
+    if (!isGhost && g === 0 && hudMode === 'full'){ const w = Math.abs(pts[1].x - pts[0].x); if (w > 40){ hx.fillStyle = col; hx.font = '9px Consolas,monospace'; hx.textAlign = 'center'; hx.fillText('0.5s', (pts[2].x+pts[3].x)/2, Math.max(pts[2].y, pts[3].y) + 11); } }
   }
 }
 const _pp = V(), _pv = V(), _pf = V(), _pr = V(), _pu = V(), _pc = V(), _pq = new THREE.Quaternion(), _pdq = new THREE.Quaternion(), _pe = new THREE.Euler();
@@ -1751,7 +1764,7 @@ function drawFeed(g, x0, y0, size, maxBottom){
     y += ch + 6;
   }
 }
-let _hudLast = 0, bossBarBottom = 0;
+let _hudLast = 0, bossBarBottom = 0; const XH = {x:0, y:0, r:10, on:false};
 function drawHUD(t){
   if (!boss) bossBarBottom = 0;
   hudDt = _hudLast ? Math.min(0.05, Math.max(0.001, t - _hudLast)) : 0.016; _hudLast = t;
@@ -1775,83 +1788,92 @@ function drawHUD(t){
   for (const k of pickups){ if (k.type === 'bit') continue; const p = project(k.g.position); if (!p) continue; const d = k.g.position.distanceTo(camera.position); if (d > 300) continue;
     hx.fillStyle = PICKUPS[k.type].c; hx.font = 'bold 10px Consolas,monospace'; hx.textAlign = 'center'; hx.fillText(PICKUPS[k.type].name, p.x, p.y - Math.max(10, 300/d)); }
   if (boss){ const p = project(boss.g.position); if (p) bracket(p.x, p.y, Math.max(30, Math.min(120, 6000/boss.g.position.distanceTo(camera.position))), '#ff3355', 'INNER DEMON'); }
+  // where the nose points (320m out) - the crosshair lives here unless it's locked onto a target
+  const ap = P.alive ? project(_t2.copy(P.pos).addScaledVector(fwd, 320)) : null;
+  const apPt = ap ? {x:ap.x, y:ap.y} : null;
   // lead gates: solid = coasting path (no thrust), faint ghosts = path with (smoothed) thrust
-  if (P.alive && P.vel.length() > 6){
-    const kpos = 1 - Math.exp(-hudDt/0.1);           // (2) gates glide to new positions
+  if (P.alive && P.vel.length() > 6 && hudMode !== 'minimal'){
+    const kpos = 1 - Math.exp(-hudDt/0.1);           // gates glide to new positions
     const coast = forecast(0, 0), ghost = forecast(P.thrSm, P.brkSm);
     const fade = Math.min(1, P.thrSm/0.3);
     gateSm.coast = smoothGates(gateSm.coast, coast, kpos);
     gateSm.ghost = smoothGates(gateSm.ghost, ghost, kpos);
-    if (fade > 0.04) drawGates(gateSm.ghost, true, fade);
-    drawGates(gateSm.coast, false, 1);
+    // (5) usefulness: drifting off the nose, or turning
+    const slip = _t.copy(P.vel).normalize().angleTo(fwd), turnR = Math.hypot(P.rate.x, P.rate.y, P.rate.z);
+    const useNow = Math.max(Math.min(1, Math.max(0, (slip - 0.05)/0.12)), Math.min(1, Math.max(0, (turnR - 0.12)/0.45)));
+    gateSm.use = (gateSm.use || 0) + (useNow - (gateSm.use || 0)) * (1 - Math.exp(-hudDt/(useNow > (gateSm.use || 0) ? 0.08 : 0.5)));
+    if (fade > 0.04) drawGates(gateSm.ghost, true, fade, apPt, gateSm.use);
+    drawGates(gateSm.coast, false, 1, apPt, gateSm.use);
   } else { gateSm.coast = gateSm.ghost = null; }
-  if (P.alive && P.vel.length() > 6){
+  if (P.alive && P.vel.length() > 6 && hudMode !== 'minimal'){
     // if the travel direction itself is off-screen, point to it
     const fp = project(_pp.copy(P.pos).addScaledVector(_pv.copy(P.vel).normalize(), 400));
     const onScreen = fp && fp.x > 20 && fp.x < W-20 && fp.y > 20 && fp.y < H-20;
     if (!onScreen){
-      // drift direction is off-screen: arrow on a ring around the crosshair pointing toward it
       _pv.copy(P.vel).normalize().transformDirection(camera.matrixWorldInverse);
       const back = _pv.z > 0, ang = Math.atan2(-_pv.y, _pv.x) , rx = Math.min(W, H)*0.36, ry = rx*0.85;
       const ax = W/2 + Math.cos(ang)*rx, ay = H/2 + Math.sin(ang)*ry;
       hx.save(); hx.translate(ax, ay); hx.rotate(ang);
-      hx.fillStyle = 'rgba(190,255,150,.85)'; hx.beginPath(); hx.moveTo(10,0); hx.lineTo(-6,-7); hx.lineTo(-3,0); hx.lineTo(-6,7); hx.closePath(); hx.fill();
+      hx.fillStyle = 'rgba(190,255,150,.8)'; hx.beginPath(); hx.moveTo(10,0); hx.lineTo(-6,-7); hx.lineTo(-3,0); hx.lineTo(-6,7); hx.closePath(); hx.fill();
       hx.restore();
-      hx.font = 'bold 9px Consolas,monospace'; hx.textAlign = 'center'; hx.fillStyle = 'rgba(190,255,150,.75)';
+      hx.font = 'bold 9px Consolas,monospace'; hx.textAlign = 'center'; hx.fillStyle = 'rgba(190,255,150,.7)';
       hx.fillText(back ? 'DRIFT (BEHIND)' : 'DRIFT', ax - Math.cos(ang)*22, ay - Math.sin(ang)*18 + 3);
     }
   }
-  // targeting reticle: amber while closing in, red lock that snaps to the target inside the firing angle
+  // gun pipper: where your shots will be 320m out, including the drift they inherit from the ship
+  if (P.alive && hudMode !== 'minimal'){
+    const pip = project(_apV.copy(P.pos).addScaledVector(fwd, 320).addScaledVector(P.vel, 320/520));
+    const off = pip && ap ? Math.hypot(pip.x-ap.x, pip.y-ap.y) : 0;
+    if (pip && (hudMode === 'full' || off > 16)){
+      const pa = hudMode === 'full' ? 0.8 : Math.min(0.8, (off - 16)/30 + 0.2);
+      hx.strokeStyle = `rgba(255,230,140,${pa})`; hx.lineWidth = 1.4; hx.beginPath();
+      hx.moveTo(pip.x, pip.y-6); hx.lineTo(pip.x+6, pip.y); hx.lineTo(pip.x, pip.y+6); hx.lineTo(pip.x-6, pip.y); hx.closePath(); hx.stroke();
+      if (ap && off > 8){ hx.strokeStyle = `rgba(255,230,140,${pa*0.35})`; hx.beginPath(); hx.moveTo(ap.x, ap.y); hx.lineTo(pip.x, pip.y); hx.stroke(); }
+    }
+  }
+  // targeting: amber brackets while closing in; once inside the firing angle the crosshair itself snaps onto the target (4)
+  let tp = null, lockR = 12;
   if (P.alive && TGT){
-    const tp = project(TGT.pos);
+    tp = project(TGT.pos);
     if (tp){
-      const d = TGT.pos.distanceTo(camera.position), base = Math.max(14, Math.min(46, 1200/d));
-      if (TGT.locked){
-        const lt = TGT.d/520, lead = project(_t2.copy(TGT.pos).addScaledVector(TGT.vel, lt).addScaledVector(P.vel, -lt));
-        const r = base*0.9, spin = t*2.5;
-        hx.strokeStyle = '#ff3355'; hx.lineWidth = 2.2; hx.shadowColor = '#f23'; hx.shadowBlur = 10;
-        hx.beginPath(); hx.arc(tp.x, tp.y, r, 0, 7); hx.stroke();
-        hx.beginPath();
-        for (let i=0;i<4;i++){ const a = spin + i*Math.PI/2; hx.moveTo(tp.x + Math.cos(a)*(r+4), tp.y + Math.sin(a)*(r+4)); hx.lineTo(tp.x + Math.cos(a)*(r+12), tp.y + Math.sin(a)*(r+12)); }
-        hx.stroke();
-        hx.lineWidth = 1.5; hx.beginPath(); hx.moveTo(tp.x-5, tp.y); hx.lineTo(tp.x+5, tp.y); hx.moveTo(tp.x, tp.y-5); hx.lineTo(tp.x, tp.y+5); hx.stroke();
-        hx.shadowBlur = 0;
-        if (lead){ hx.fillStyle = 'rgba(255,80,110,.85)'; hx.beginPath(); hx.arc(lead.x, lead.y, 3, 0, 7); hx.fill();
-          hx.strokeStyle = 'rgba(255,80,110,.4)'; hx.lineWidth = 1; hx.beginPath(); hx.moveTo(tp.x, tp.y); hx.lineTo(lead.x, lead.y); hx.stroke(); }
-        hx.font = 'bold 11px Consolas,monospace'; hx.textAlign = 'center'; hx.fillStyle = Math.floor(t*6)%2 ? '#ff6680' : '#ffb3c0';
-        hx.fillText('LOCK', tp.x, tp.y - r - 16);
-        hx.fillStyle = '#fbb'; hx.font = '10px Consolas,monospace'; hx.fillText(`${TGT.label} · ${Math.round(TGT.d)}m`, tp.x, tp.y + r + 24);
-      } else {
-        // closing in: brackets shrink toward the lock size as the angle closes
+      const d = TGT.pos.distanceTo(camera.position), base = Math.max(14, Math.min(46, 1200/d)); lockR = Math.max(12, base*0.9);
+      if (!TGT.locked){
         const f = Math.max(0, Math.min(1, (TGT.ang - LOCK_ANG())/(NEAR_ANG - LOCK_ANG()))), r = base*1.2 + 12 + f*46, rot = Math.PI/4;
-        hx.strokeStyle = `rgba(251,191,36,${0.95 - f*0.5})`; hx.lineWidth = 1.8; hx.beginPath();
+        hx.strokeStyle = `rgba(251,191,36,${0.85 - f*0.45})`; hx.lineWidth = 1.6; hx.beginPath();
         for (let i=0;i<4;i++){ const a = rot + i*Math.PI/2; const cx = tp.x + Math.cos(a)*r, cy = tp.y + Math.sin(a)*r;
           hx.moveTo(cx - Math.cos(a)*10 + Math.cos(a+Math.PI/2)*8, cy - Math.sin(a)*10 + Math.sin(a+Math.PI/2)*8); hx.lineTo(cx, cy); hx.lineTo(cx - Math.cos(a)*10 - Math.cos(a+Math.PI/2)*8, cy - Math.sin(a)*10 - Math.sin(a+Math.PI/2)*8); }
         hx.stroke();
-        // line guiding the crosshair toward it
-        const ap = project(_apV.copy(P.pos).addScaledVector(fwd, 320));
-        if (ap){ hx.strokeStyle = 'rgba(251,191,36,.35)'; hx.setLineDash([4,6]); hx.beginPath(); hx.moveTo(ap.x, ap.y); hx.lineTo(tp.x, tp.y); hx.stroke(); hx.setLineDash([]); }
+        if (ap && hudMode !== 'minimal'){ hx.strokeStyle = 'rgba(251,191,36,.3)'; hx.setLineDash([4,6]); hx.beginPath(); hx.moveTo(ap.x, ap.y); hx.lineTo(tp.x, tp.y); hx.stroke(); hx.setLineDash([]); }
         hx.font = '10px Consolas,monospace'; hx.textAlign = 'center'; hx.fillStyle = 'rgba(253,230,138,.85)'; hx.fillText('TRACKING', tp.x, tp.y - r - 6);
       }
     }
   }
-  // crosshair at the aim point
-  if (P.alive){
-    const ap = project(_t2.copy(P.pos).addScaledVector(fwd, 320));
-    if (ap){ hx.strokeStyle = TGT && TGT.locked ? 'rgba(255,90,120,.95)' : 'rgba(160,255,255,.85)'; hx.lineWidth = 1.5; hx.beginPath(); hx.arc(ap.x, ap.y, 10, 0, 7);
-      hx.moveTo(ap.x-18, ap.y); hx.lineTo(ap.x-12, ap.y); hx.moveTo(ap.x+12, ap.y); hx.lineTo(ap.x+18, ap.y); hx.moveTo(ap.x, ap.y-18); hx.lineTo(ap.x, ap.y-12); hx.moveTo(ap.x, ap.y+12); hx.lineTo(ap.x, ap.y+18); hx.stroke(); }
-  }
-  // gun pipper: where your shots will be 320m out, including the drift they inherit from the ship
-  if (P.alive){
-    const tt = 320/520;
-    const pip = project(_apV.copy(P.pos).addScaledVector(fwd, 320).addScaledVector(P.vel, tt));
-    const ch = project(_t2.copy(P.pos).addScaledVector(fwd, 320));
-    if (pip){
-      hx.strokeStyle = 'rgba(255,230,140,.9)'; hx.lineWidth = 1.5; hx.beginPath();
-      hx.moveTo(pip.x, pip.y-6); hx.lineTo(pip.x+6, pip.y); hx.lineTo(pip.x, pip.y+6); hx.lineTo(pip.x-6, pip.y); hx.closePath(); hx.stroke();
-      if (ch && Math.hypot(pip.x-ch.x, pip.y-ch.y) > 8){ hx.strokeStyle = 'rgba(255,230,140,.35)'; hx.beginPath(); hx.moveTo(ch.x, ch.y); hx.lineTo(pip.x, pip.y); hx.stroke(); }
+  // (3)(4) crosshair: drawn last, bright with a dark outline; slides onto a locked target and turns red
+  if (ap){
+    const locked = !!(TGT && TGT.locked && tp), want = locked ? tp : ap, ks = 1 - Math.exp(-hudDt/0.06);
+    if (!XH.on){ XH.x = want.x; XH.y = want.y; XH.r = 10; XH.on = true; }
+    XH.x += (want.x - XH.x)*ks; XH.y += (want.y - XH.y)*ks; XH.r += ((locked ? lockR : 10) - XH.r)*ks;
+    const x = XH.x, y = XH.y, r = XH.r, col = locked ? '#ff4d6d' : '#aaffff';
+    const shape = () => { hx.beginPath(); hx.arc(x, y, r, 0, 7);
+      if (locked){ const spin = t*2.5; for (let i=0;i<4;i++){ const a = spin + i*Math.PI/2; hx.moveTo(x + Math.cos(a)*(r+4), y + Math.sin(a)*(r+4)); hx.lineTo(x + Math.cos(a)*(r+12), y + Math.sin(a)*(r+12)); } }
+      else { hx.moveTo(x-r-9, y); hx.lineTo(x-r-2, y); hx.moveTo(x+r+2, y); hx.lineTo(x+r+9, y); hx.moveTo(x, y-r-9); hx.lineTo(x, y-r-2); hx.moveTo(x, y+r+2); hx.lineTo(x, y+r+9); }
+      hx.moveTo(x-2.5, y); hx.lineTo(x+2.5, y); hx.moveTo(x, y-2.5); hx.lineTo(x, y+2.5); };
+    hx.lineCap = 'round';
+    hx.strokeStyle = 'rgba(0,8,16,.75)'; hx.lineWidth = 5; shape(); hx.stroke();
+    hx.strokeStyle = col; hx.lineWidth = 2.2; hx.shadowColor = col; hx.shadowBlur = locked ? 10 : 6; shape(); hx.stroke(); hx.shadowBlur = 0;
+    hx.lineCap = 'butt';
+    if (locked){
+      // true nose stays marked with a small dot; lead dot shows where to put shots on a mover
+      hx.fillStyle = 'rgba(0,8,16,.7)'; hx.beginPath(); hx.arc(ap.x, ap.y, 4, 0, 7); hx.fill();
+      hx.fillStyle = '#aaffff'; hx.beginPath(); hx.arc(ap.x, ap.y, 2.2, 0, 7); hx.fill();
+      const lt = TGT.d/520, lead = project(_apV.copy(TGT.pos).addScaledVector(TGT.vel, lt).addScaledVector(P.vel, -lt));
+      if (lead){ hx.fillStyle = 'rgba(255,80,110,.9)'; hx.beginPath(); hx.arc(lead.x, lead.y, 3, 0, 7); hx.fill();
+        hx.strokeStyle = 'rgba(255,80,110,.4)'; hx.lineWidth = 1; hx.beginPath(); hx.moveTo(x, y); hx.lineTo(lead.x, lead.y); hx.stroke(); }
+      hx.font = 'bold 11px Consolas,monospace'; hx.textAlign = 'center'; hx.fillStyle = Math.floor(t*6)%2 ? '#ff6680' : '#ffb3c0';
+      hx.fillText('LOCK', x, y - r - 16);
+      if (hudMode !== 'minimal'){ hx.fillStyle = '#fbb'; hx.font = '10px Consolas,monospace'; hx.fillText(`${TGT.label} · ${Math.round(TGT.d)}m`, x, y + r + 24); }
     }
-  }
+  } else XH.on = false;
   // floating messages
   hx.textAlign = 'center'; hx.font = 'bold 12px Consolas,monospace';
   let stackY = H*0.30;
