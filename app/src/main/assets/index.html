@@ -141,7 +141,7 @@
     <div class="modeSw">GAME MODE <button class="" data-mode="2d">2D classic</button><button class="alt" data-mode="3d">3D space</button></div>
     <p class="sub">Something has gotten into your drive. Viruses are loose in your folders, infecting your files. Fly in, rescue clean icons by flying into them, and blast infected ones until they're clean again. Clear enough sectors and the Demon's Gate opens.</p>
     <div class="btns">
-      <label class="btn" for="dirInput">Scan a real folder…</label>
+      <label class="btn webOnly" for="dirInput">Scan a real folder…</label>
       <input type="file" id="dirInput" webkitdirectory directory multiple accept="inode/directory">
       <label class="btn touchOnly" for="filesInput">Pick files from phone…</label>
       <input type="file" id="filesInput" multiple>
@@ -398,11 +398,12 @@
     <div class="modeSw">GAME MODE <button class="alt" data-mode="2d">2D classic</button><button class="" data-mode="3d">3D space</button></div>
     <p class="sub">Your drive is now a sphere of cyberspace and nothing has an "up". Viruses come at you from every direction. Rescue clean icons by flying into them, blast infected ones until they're clean, and watch the navball radar at the bottom: it shows everything around you, in front and behind.</p>
     <div class="btns">
-      <label class="btn" for="dirInput">Scan a real folder…</label>
+      <label class="btn webOnly" for="dirInput">Scan a real folder…</label>
       <input type="file" id="dirInput" webkitdirectory directory multiple accept="inode/directory">
       <label class="btn touchOnly" for="filesInput">Pick files from phone…</label>
       <input type="file" id="filesInput" multiple>
       <button class="alt" id="demoBtn">Play the demo drive</button>
+      <button class="alt" id="freeBtn">🛰 Free flight</button>
       <button class="alt touchOnly webOnly" id="fsBtn">Fullscreen</button>
       <button class="alt" id="setBtn">⚙ Settings</button>
       <button class="alt appOnly" id="updBtn">⬆ Check for updates</button>
@@ -1952,8 +1953,9 @@ function renderHangar(){
     + (sd.volley ? '<div class="statrow"><span>Guns</span><span style="grid-column:2/4;color:#fde68a">Twin wingtip volley, half fire rate</span></div>' : '')
     + (sd.wide ? '<div class="statrow"><span>Bonus</span><span style="grid-column:2/4;color:#fde68a">Built-in scatter shot (never runs out; 75% damage, 75% range)</span></div>' : '');
 }
-function launchRun(){ shipId = hangarSel; lsSet('iconpatrol.ship', shipId); const sec = pendingSectors; pendingSectors = null; startRun(sec); }
-function newRun(sectors){ showHangar(sectors); }
+let pendingFree = false;
+function launchRun(){ shipId = hangarSel; lsSet('iconpatrol.ship', shipId); if (pendingFree){ pendingFree = false; startFree(); return; } const sec = pendingSectors; pendingSectors = null; startRun(sec); }
+function newRun(sectors){ showHangar(sectors); pendingFree = false; }
 function startRun(sectors){ G.ship = shipId; applyShipMesh(); G.sectors = sectors; G.score = 0; G.lives = 3; G.cleared = 0; G.bits = 0; G.up = freshUpgrades(); showMap(); }
 
 // 3D ship models: the 2D outline extruded into a hull, plus fins / barrels / shield ring per type
@@ -2008,11 +2010,34 @@ function drawHangarPreview(t){
 }
 
 
+// ---------- free flight: no enemies, no damage, endless icons and practice drones ----------
+const FREE_DRONES = 6, TARGET_HP = {patrol:3, racer:2, fighter:3, bulwark:6, gunship:5};
+function startFree(){
+  G.ship = shipId; applyShipMesh(); G.sectors = []; G.score = 0; G.lives = 3; G.cleared = 0; G.bits = 0; G.up = freshUpgrades();
+  G.cur = {path:'FREE FLIGHT', free:true, files:[]}; resetField(); queue = [];
+  hideAll(); G.state = 'play'; G.paused = false; G.startT = performance.now()/1000; relockIfWanted();
+  $('pMap').textContent = 'Leave free flight';
+  for (let i = 0; i < FREE_DRONES; i++) spawnDrone(true);
+  setBanner('FREE FLIGHT', 2.5); toast('Free flight: no damage. Enemy ships fly around as practice targets (they don\'t shoot). Pause to leave.');
+}
+function spawnDrone(ahead){
+  const at = ahead ? P.pos.clone().add(V((Math.random()*2-1)*180, (Math.random()*2-1)*90, -(180 + Math.random()*320))) : randInSphere(R*0.7);
+  if (at.length() > R*0.9) at.setLength(R*0.9);
+  // a red copy of one of the five ship classes, flying at its class's speed
+  const sd = SHIPS[Math.floor(Math.random()*SHIPS.length)], g = buildShipMesh(sd.id);
+  g.traverse(o => { if (o.material){ o.material = o.material.clone(); const lum = o.material.color.getHSL({}).l; o.material.color.setHSL(0.98, 0.85, Math.max(0.12, Math.min(0.62, lum))); } });
+  g.add(glowSprite(0xff3355, 26, 0.35));
+  g.position.copy(at); scene.add(g);
+  const sp = 45*sd.speed;
+  viruses.push({g, vel:randDir().multiplyScalar(sp), hp:TARGET_HP[sd.id], dummy:true, ship:sd, sp, turn:0.5*sd.turn, wp:randInSphere(R*0.6), wpT:4 + Math.random()*5, spin:V(), label:'TARGET · ' + sd.name.toUpperCase()});
+}
 function startSector(sec){
+  $('pMap').textContent = 'Leave sector (drive map)';
   G.cur = sec; sec._waiting = false; resetField(); queue = sec.files.slice();
   hideAll(); G.state = 'play'; G.paused = false; G.startT = performance.now()/1000; relockIfWanted(); nextWave();
 }
 function startBoss(){
+  $('pMap').textContent = 'Leave sector (drive map)';
   G.cur = {path:"DEMON'S GATE", boss:true, files:[]}; resetField(); queue = [];
   hideAll(); G.state = 'play'; G.paused = false; G.startT = performance.now()/1000; relockIfWanted();
   const g = new THREE.Group();
@@ -2045,7 +2070,7 @@ function nextWave(){
     icons.push({g, spr, glow, tex, vel:randDir().multiplyScalar(4+Math.random()*8), f, infected:false, hp:3, shootT:2+Math.random()*2, flash:0, bob:Math.random()*6});
   }
   const total = Math.ceil(G.cur.files.length/8);
-  setBanner(total > 1 ? `WAVE ${waveNo}/${total}` : 'SECTOR BREACHED'); SFX.wave();
+  if (!G.cur.free){ setBanner(total > 1 ? `WAVE ${waveNo}/${total}` : 'SECTOR BREACHED'); SFX.wave(); }
 }
 function spawnVirus(at){
   const g = new THREE.Group();
@@ -2246,7 +2271,7 @@ window.onBack = () => {
   if (G.state === 'map' || G.state === 'end' || G.state === 'hangar'){ showTitle(); return true; }
   return false;
 };
-function abortToMap(){ if (G.state !== 'play' || G.lives < 0) return; if (G.cur && G.cur._finish){ timers = []; G.cur._finish(); return; } timers = []; if (G.cur) G.cur._waiting = false; showMap(); }
+function abortToMap(){ if (G.state !== 'play' || G.lives < 0) return; if (G.cur && G.cur.free){ timers = []; showTitle(); return; } if (G.cur && G.cur._finish){ timers = []; G.cur._finish(); return; } timers = []; if (G.cur) G.cur._waiting = false; showMap(); }
 
 // ---------- touch controls (Android / phones / tablets) ----------
 const TOUCH_IS = !!((window.matchMedia && matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window));
@@ -2379,6 +2404,7 @@ function showEnd(win){
 }
 function esc(s){ return s.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 $('demoBtn').onclick = () => { beep(1,0.01,'sine',0.0001); newRun(buildDemo()); };
+$('freeBtn').onclick = () => { beep(1,0.01,'sine',0.0001); showHangar(null); pendingFree = true; };
 $('dirInput').onchange = e => {
   const list = [...e.target.files]; e.target.value = '';
   const secs = buildFromFiles(list);
@@ -2428,6 +2454,7 @@ $('againBtn').onclick = showTitle;
 
 // ---------- gameplay ----------
 function damage(n){
+  if (G.cur && G.cur.free) return;   // free flight: no damage
   if (!P.alive || P.inv > 0 || P.pw.firewall > 0) return;
   P.shield -= n; P.inv = 0.5; SFX.hurt(); rumble(120, 0.5); hitFlash = 0.35;
   if (P.shield <= 0){
@@ -2532,7 +2559,7 @@ function scanTarget(){
     const ang = _t.divideScalar(d).angleTo(fwd);
     if (ang < bestAng){ bestAng = ang; best = {pos, vel, d, ang, label}; }
   };
-  for (const v of viruses) consider(v.g.position, v.vel, 'VIRUS');
+  for (const v of viruses) consider(v.g.position, v.vel, v.label || 'VIRUS');
   for (const ic of icons) if (ic.infected) consider(ic.g.position, ic.vel, short(ic.f.name));
   if (boss) consider(boss.g.position, boss.vel, 'INNER DEMON');
   if (best) best.locked = best.ang < LOCK_ANG();
@@ -2700,7 +2727,8 @@ function update(dt){
   // ---- virus spawning ----
   const maxV = boss ? 7 : 2 + Math.min(6, diff);
   virusT -= dt;
-  if (!boss && virusT <= 0 && viruses.length < maxV && icons.some(i => !i.infected)){
+  if (G.cur.free){ if (viruses.length < FREE_DRONES && virusT <= 0){ virusT = 2.5; spawnDrone(false); } }
+  else if (!boss && virusT <= 0 && viruses.length < maxV && icons.some(i => !i.infected)){
     virusT = Math.max(1.3, 4 - diff*0.33) * (0.7+Math.random()*0.6);
     // spawn a little way off from a random clean icon, so the fight stays where the files are
     const clean = icons.filter(i => !i.infected); const anchor = clean[Math.floor(Math.random()*clean.length)];
@@ -2710,6 +2738,15 @@ function update(dt){
   }
   // ---- viruses ----
   for (const v of viruses){
+    if (v.dummy){
+      // practice ship: wander between random waypoints, banking gently toward each
+      v.wpT -= dt; if (v.wpT <= 0 || v.g.position.distanceToSquared(v.wp) < 2500){ v.wp = randInSphere(R*0.6); v.wpT = 4 + Math.random()*6; }
+      _t.copy(v.wp).sub(v.g.position).normalize().multiplyScalar(v.sp);
+      v.vel.lerp(_t, Math.min(1, v.turn*dt)).setLength(v.sp);
+      softWall(v.g.position, v.vel); v.g.position.addScaledVector(v.vel, dt);
+      v.g.lookAt(_t2.copy(v.g.position).sub(v.vel));
+      continue;
+    }
     let tgt = null, best = 1e12;
     for (const ic of icons){ if (ic.infected) continue; const d = v.g.position.distanceToSquared(ic.g.position); if (d < best){ best = d; tgt = ic.g.position; } }
     if (!tgt && P.alive) tgt = P.pos;
@@ -2786,7 +2823,7 @@ function update(dt){
   const fw = P.alive && P.pw.firewall > 0;
   if (P.alive) for (const b of bullets){ if (b.enemy && b.life > 0 && b.g.position.distanceToSquared(P.pos) < (fw ? 121 : 25)){ b.life = 0; damage(12); burst(b.g.position, fw ? '#c084fc' : '#f55', 8, 25, 0.4); } }
   for (const v of viruses){
-    if (v.hp <= 0) continue;
+    if (v.hp <= 0 || v.dummy) continue;
     for (const ic of icons){ if (!ic.dead && !ic.infected && v.g.position.distanceToSquared(ic.g.position) < 256){
       ic.infected = true; ic.hp = 3; ic.shootT = 1.5; v.hp = 0; ic.glow.material.color.set(0xff2040);
       burst(ic.g.position, '#f35', 20, 35); msg('INFECTED: ' + short(ic.f.name), ic.g.position, '#f57'); SFX.infect(); break; } }
@@ -2836,7 +2873,7 @@ function update(dt){
   if (banner){ banner.life -= dt; if (banner.life <= 0) banner = null; }
 
   // ---- wave / sector completion ----
-  if (!G.cur.boss && icons.length === 0 && !G.cur._waiting && G.lives >= 0){
+  if (!G.cur.free && !G.cur.boss && icons.length === 0 && !G.cur._waiting && G.lives >= 0){
     G.cur._waiting = true;
     if (queue.length){ later(1.2, () => { G.cur._waiting = false; nextWave(); }); }
     else {
@@ -2980,7 +3017,7 @@ function drawCockpitPanels(t){
   panel(nx + nr + 18, 'NAV', [
     bar('THR', leverFrac(tv), tv > 1.001 ? '#ff5577' : '#5ff', Math.round(tv*100) + '%'),
     bar('SPD', spd/(S.top*REDLINE), P.boosting ? '#fff' : '#9cf', Math.round(spd) + ''),
-    text(G.cur.boss ? `DEMON ${Math.ceil(boss ? boss.hp/boss.max*100 : 0)}%  VIRUS ${viruses.length}` : `ICONS ${icons.length}  VIRUS ${viruses.length}  Q ${queue.length}`, '#9cd'),
+    text(G.cur.boss ? `DEMON ${Math.ceil(boss ? boss.hp/boss.max*100 : 0)}%  VIRUS ${viruses.length}` : (G.cur.free ? `TARGETS ${viruses.length}  FREE FLIGHT` : `ICONS ${icons.length}  VIRUS ${viruses.length}  Q ${queue.length}`), '#9cd'),
     text(`EDGE ${edge}m  RADAR ${S.radar}m`, edge < 60 ? '#fc4' : '#7ab'),
     text('FLT ' + FLIGHT_NAME[flightMode].toUpperCase() + ' · ' + G.cur.path),
   ]);
@@ -3229,7 +3266,7 @@ function drawHUD(t){
   hx.textAlign = 'right'; hx.font = '13px Consolas,monospace'; hx.fillStyle = '#9cd';
   if (!fpv || TC.used){
   hx.fillText(G.cur.path, WW-16, 24);
-  if (!G.cur.boss){ hx.fillStyle = '#7ab'; hx.fillText(`icons ${icons.length} · queued ${queue.length} · viruses ${viruses.length}`, WW-16, 42); }
+  if (!G.cur.boss){ hx.fillStyle = '#7ab'; hx.fillText(G.cur.free ? `practice targets ${viruses.length} · no damage` : `icons ${icons.length} · queued ${queue.length} · viruses ${viruses.length}`, WW-16, 42); }
   hx.fillText('SPEED ' + Math.round(P.vel.length()) + '   THROTTLE ' + Math.round(Math.max(throttle, effThr)*100) + '%', WW-16, 60);
   hx.fillText('FLIGHT ' + FLIGHT_NAME[flightMode].toUpperCase() + ' (G)', WW-16, 78);
   }

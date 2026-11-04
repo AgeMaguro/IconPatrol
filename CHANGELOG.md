@@ -11,6 +11,10 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.20 - 2026-11-03
+- 3D: new "🛰 Free flight" mode on the title screen (pick a ship, then fly). No damage and no infection; six practice targets fly around: red copies of the five ship classes, wandering at their class's speed and handling, not shooting back. HP by class (Racer 2, Patrol/Fighter 3, Gunship 5, Bulwark 6); lock-on names the class. Destroyed targets respawn. Leave via pause -> "Leave free flight". Upgrades are the base levels (tests the ship's own stats).
+- Android app: "Scan a real folder…" is hidden (use "Pick files from phone…"). Still available in the browser version.
+
 ## 1.0.19 - 2026-11-03
 - Updater: Android blocked in-app updates with "INSTALL_FAILED_ABORTED: Self update is blocked by unknown source package" (apps installed from a browser download may not replace themselves). When Android refuses, the app now automatically hands the downloaded APK to Android's own installer ("Do you want to update this app?" -> Update), the same as installing from the browser. New `ApkProvider` serves the downloaded APK to the installer, read-only.
 - No longer asks Android to skip the confirm screen (it requires the app to be its own installer, which a sideloaded app isn't).
