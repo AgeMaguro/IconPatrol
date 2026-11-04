@@ -11,6 +11,10 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.25 - 2026-11-03
+- 3D lock-on: the red LOCK reticle now snaps onto the gold lead point (where to aim) instead of the enemy's body. Light pink corner brackets and the name/distance label mark the enemy itself.
+- Lock and aim assist count the lead point as on target, so the lock no longer drops while you aim ahead of a fast crossing ship.
+
 ## 1.0.24 - 2026-11-03
 - Ship hangar fits on a phone screen without scrolling (both modes). Launch/Back moved under the ship list; on short screens the preview sits beside the ship name and the stat rows are tighter. Tested at 740x340 to 900x415 landscape and 1280x720 with every ship.
 

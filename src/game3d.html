@@ -1375,7 +1375,9 @@ function scanTarget(){
   let best = null, bestAng = NEAR_ANG;
   const consider = (pos, vel, label) => {
     _t.copy(pos).sub(P.pos); const d = _t.length(); if (d > 650 || d < 5) return;
-    const ang = _t.divideScalar(d).angleTo(fwd);
+    const tt = d/520; _t2.copy(pos).addScaledVector(vel, tt).addScaledVector(P.vel, -tt).sub(P.pos);
+    // aiming at the target OR at its lead point both count as on target
+    const ang = Math.min(_t.divideScalar(d).angleTo(fwd), _t2.lengthSq() > 1 ? _t2.angleTo(fwd) : 9);
     if (ang < bestAng){ bestAng = ang; best = {pos, vel, d, ang, label}; }
   };
   for (const v of viruses) consider(v.g.position, v.vel, v.label || 'VIRUS');
@@ -1393,7 +1395,8 @@ function aimDir(origin, baseDir){
   let best = null, bestAng = LOCK_ANG();
   const consider = (pos, vel) => {
     _t.copy(pos).sub(origin); const d = _t.length(); if (d > 650 || d < 5) return;
-    const ang = _t.divideScalar(d).angleTo(baseDir);
+    const tt = d/520; _t2.copy(pos).addScaledVector(vel, tt).addScaledVector(P.vel, -tt).sub(origin);
+    const ang = Math.min(_t.divideScalar(d).angleTo(baseDir), _t2.lengthSq() > 1 ? _t2.angleTo(baseDir) : 9);
     if (ang < bestAng){ bestAng = ang; best = {pos, vel, d}; }
   };
   for (const v of viruses) consider(v.g.position, v.vel);
@@ -2025,12 +2028,22 @@ function drawHUD(t){
       if (ap && off > 8){ hx.strokeStyle = `rgba(255,230,140,${pa*0.35})`; hx.beginPath(); hx.moveTo(ap.x, ap.y); hx.lineTo(pip.x, pip.y); hx.stroke(); }
     }
   }
-  // targeting: amber brackets while closing in; once inside the firing angle the crosshair itself snaps onto the target (4)
-  let tp = null, lockR = 12;
+  // targeting: amber brackets while closing in; once locked the crosshair snaps onto the LEAD point and light brackets mark the enemy (4)
+  let tp = null, lockR = 12, leadP = null;
   if (P.alive && TGT){
     tp = project(TGT.pos);
+    if (tp){ const lt = TGT.d/520; leadP = project(_apV.copy(TGT.pos).addScaledVector(TGT.vel, lt).addScaledVector(P.vel, -lt)); }
     if (tp){
-      const d = TGT.pos.distanceTo(camera.position), base = Math.max(14, Math.min(46, 1200/d)); lockR = Math.max(12, base*0.9);
+      const d = TGT.pos.distanceTo(camera.position), base = Math.max(14, Math.min(46, 1200/d)); lockR = 13;
+      if (TGT.locked){
+        // light corner brackets on the enemy itself, so you can see what the lead reticle belongs to
+        const b = base*1.05 + 8, c = Math.max(6, b*0.38);
+        const brk = () => { hx.beginPath();
+          for (const [sx, sy] of [[-1,-1],[1,-1],[1,1],[-1,1]]){ const cx = tp.x + sx*b, cy = tp.y + sy*b; hx.moveTo(cx - sx*c, cy); hx.lineTo(cx, cy); hx.lineTo(cx, cy - sy*c); } };
+        hx.strokeStyle = 'rgba(0,8,16,.55)'; hx.lineWidth = 3.5; brk(); hx.stroke();
+        hx.strokeStyle = 'rgba(255,190,200,.75)'; hx.lineWidth = 1.4; brk(); hx.stroke();
+        if (hudMode !== 'minimal'){ hx.font = '10px Consolas,monospace'; hx.textAlign = 'center'; hx.fillStyle = 'rgba(255,200,210,.85)'; hx.fillText(`${TGT.label} · ${Math.round(TGT.d)}m`, tp.x, tp.y + b + 13); }
+      }
       if (!TGT.locked){
         const f = Math.max(0, Math.min(1, (TGT.ang - LOCK_ANG())/(NEAR_ANG - LOCK_ANG()))), r = base*1.2 + 12 + f*46, rot = Math.PI/4;
         hx.strokeStyle = `rgba(251,191,36,${0.85 - f*0.45})`; hx.lineWidth = 1.6; hx.beginPath();
@@ -2057,7 +2070,7 @@ function drawHUD(t){
   // aim-lead marker: where to point so shots meet the target (its motion and your drift included).
   // Shown while tracking AND locked, in its own color (white core, gold ring) so it never reads as an enemy.
   if (P.alive && TGT && tp){
-    const lt = TGT.d/520, lead = project(_apV.copy(TGT.pos).addScaledVector(TGT.vel, lt).addScaledVector(P.vel, -lt));
+    const lead = leadP;
     if (lead){
       const sep = Math.hypot(lead.x - tp.x, lead.y - tp.y), la = TGT.locked ? 1 : 0.85;
       if (sep > 3){ hx.strokeStyle = `rgba(255,212,0,${0.45*la})`; hx.lineWidth = 1; hx.setLineDash([3,3]); hx.beginPath(); hx.moveTo(tp.x, tp.y); hx.lineTo(lead.x, lead.y); hx.stroke(); hx.setLineDash([]); }
@@ -2068,7 +2081,7 @@ function drawHUD(t){
   }
   // (3)(4) crosshair: drawn last, bright with a dark outline; slides onto a locked target and turns red
   if (ap){
-    const locked = !!(TGT && TGT.locked && tp), want = locked ? tp : ap, ks = 1 - Math.exp(-hudDt/0.06);
+    const locked = !!(TGT && TGT.locked && tp), want = locked ? (leadP || tp) : ap, ks = 1 - Math.exp(-hudDt/0.06);
     if (!XH.on){ XH.x = want.x; XH.y = want.y; XH.r = 10; XH.on = true; }
     XH.x += (want.x - XH.x)*ks; XH.y += (want.y - XH.y)*ks; XH.r += ((locked ? lockR : 10) - XH.r)*ks;
     const x = XH.x, y = XH.y, r = XH.r, col = locked ? '#ff4d6d' : '#aaffff';
@@ -2081,12 +2094,11 @@ function drawHUD(t){
     hx.strokeStyle = col; hx.lineWidth = 2.2; hx.shadowColor = col; hx.shadowBlur = locked ? 10 : 6; shape(); hx.stroke(); hx.shadowBlur = 0;
     hx.lineCap = 'butt';
     if (locked){
-      // true nose stays marked with a small dot; lead dot shows where to put shots on a mover
+      // true nose stays marked with a small dot; the reticle itself sits on the lead point
       hx.fillStyle = 'rgba(0,8,16,.7)'; hx.beginPath(); hx.arc(ap.x, ap.y, 4, 0, 7); hx.fill();
       hx.fillStyle = '#aaffff'; hx.beginPath(); hx.arc(ap.x, ap.y, 2.2, 0, 7); hx.fill();
       hx.font = 'bold 11px Consolas,monospace'; hx.textAlign = 'center'; hx.fillStyle = Math.floor(t*6)%2 ? '#ff6680' : '#ffb3c0';
       hx.fillText('LOCK', x, y - r - 16);
-      if (hudMode !== 'minimal'){ hx.fillStyle = '#fbb'; hx.font = '10px Consolas,monospace'; hx.fillText(`${TGT.label} · ${Math.round(TGT.d)}m`, x, y + r + 24); }
     }
   } else XH.on = false;
   // floating messages
