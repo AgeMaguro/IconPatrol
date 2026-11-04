@@ -11,6 +11,16 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.12 - 2026-11-03
+- Ship hangar: before each run (scan or demo) a "Choose your ship" screen shows five ships with stat bars, a description and a preview (rotating 3D model in 3D mode). Your pick is remembered (`iconpatrol.ship`) and shown on the drive map.
+  - Patrol: the original ship, balanced (100% across the board).
+  - Racer: slim needle. Speed 138%, handling 135%, firepower 70%, shield 60%.
+  - Fighter: swept wings with wingtip cannons. Speed 115%, handling 112%, firepower 135%, shield 75%.
+  - Bulwark: armored hexagon with a shield ring. Shield 165% (and faster recharge), firepower 100%, speed and handling 78%.
+  - Gunship: four forward barrels. Firepower 160% and starts with twin shots, shield 110%, speed 84%, handling 82%.
+- Speed scales thrust and top speed; handling scales turn rate (2D) and pitch/yaw/roll rates (3D); firepower scales fire rate; shield scales max shield and recharge. Upgrades stack on top.
+- Each ship has its own shape when flying in both modes (2D outline, 3D extruded model) and in the 2D lives icons.
+
 ## 1.0.11 - 2026-11-03 (moved to its own public repo)
 - In-app updates: title screen "⬆ Check for updates" (app only). Checks quietly on start; when a newer version is out the button turns gold ("Install update 1.0.N"); tap to download and install. First time, Android asks you to allow "Install unknown apps" for Icon Patrol (once). On Android 12+ later updates may install without the confirm screen.
 - The app now has internet permission, used only by the updater; the game page can't load anything from the web.

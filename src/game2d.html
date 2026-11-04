@@ -34,6 +34,30 @@
   .note{font-size:12px;color:#678;margin-top:14px;line-height:1.5}
   input[type=file]{display:none}
   #pause,#settings{z-index:8}
+  .panel.wide{width:min(920px,94vw)}
+  .hangar{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:16px;align-items:start}
+  @media (max-width:640px){.hangar{grid-template-columns:1fr}}
+  .shipList{display:flex;flex-direction:column;gap:7px}
+  .shipCard{display:flex;align-items:center;gap:10px;text-align:left;font-weight:normal;font-size:12px;color:#cfeaff;background:#0a1a33;border:1px solid #2af4;box-shadow:none;padding:4px 10px}
+  .shipCard canvas{width:70px;height:40px;flex:none}
+  .shipCard b{display:block;font-size:15px}
+  .shipCard small{color:#8ab}
+  .shipCard.sel{border-color:#5ff;background:#0c2a44;box-shadow:0 0 14px #0ff5}
+  #shipPrev{display:block;width:100%;max-width:440px;aspect-ratio:36/20;background:radial-gradient(#0c2240,#040814 70%);border:1px solid #2af3;border-radius:8px}
+  @media (max-height:520px){
+    #hangar .panel{padding:12px 18px;max-height:96vh} #hangar h2{margin:0 0 8px;font-size:18px}
+    .hangar{grid-template-columns:200px 1fr;gap:12px} .shipList{gap:4px}
+    .shipCard{padding:2px 8px} .shipCard canvas{width:46px;height:26px} .shipCard b{font-size:13px} .shipCard small{display:none}
+    #shipPrev{max-width:250px} #shipName{margin:4px 0 0;font-size:18px} #shipDesc{display:none} .statrow{margin:3px 0}
+    #hangar .btns{margin-top:8px}
+  }
+  #shipName{margin:8px 0 0;font-size:24px;letter-spacing:2px}
+  .tagl{margin:0 0 6px;color:#9cd;font-size:13px}
+  .statrow{display:grid;grid-template-columns:84px 1fr 48px;align-items:center;gap:8px;font-size:12px;color:#9bc;margin:5px 0}
+  .statbar{height:9px;background:#173048;border-radius:5px;overflow:hidden}
+  .statbar i{display:block;height:100%}
+  .statrow .v{text-align:right;color:#cfeaff}
+
   .panel.narrow{width:min(470px,92vw)}
   .menu{display:flex;flex-direction:column;gap:10px;margin-top:6px}
   .menu button{font-size:16px;padding:13px 18px}
@@ -161,11 +185,28 @@
 <div class="overlay" id="map">
   <div class="panel">
     <h2 id="mapTitle">DRIVE MAP</h2>
-    <div class="stats"><div>SCORE <b id="mScore">0</b></div><div>LIVES <b id="mLives">3</b></div><div>CLEAN <b id="mClean">0</b></div></div>
+    <div class="stats"><div>SHIP <b id="mShip">-</b></div><div>SCORE <b id="mScore">0</b></div><div>LIVES <b id="mLives">3</b></div><div>CLEAN <b id="mClean">0</b></div></div>
     <div class="sectors" id="sectors"></div>
     <div class="shopHead"><h2 style="margin:0">SHIP UPGRADES</h2><div class="bits">◆ <b id="mBits">0</b> bits</div></div>
     <div class="shop" id="shop"></div>
     <div class="btns"><button class="alt" id="quitBtn">Quit to title</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="hangar">
+  <div class="panel wide">
+    <h2>CHOOSE YOUR SHIP</h2>
+    <div class="hangar">
+      <div class="shipList" id="shipList"></div>
+      <div>
+        <canvas id="shipPrev" width="440" height="244"></canvas>
+        <h3 id="shipName"></h3>
+        <p class="tagl" id="shipTag"></p>
+        <p class="sub" style="margin:0 0 8px" id="shipDesc"></p>
+        <div id="shipStats"></div>
+      </div>
+    </div>
+    <div class="btns"><button id="launchBtn">🚀 Launch</button><button class="alt" id="hangarBack">Back</button></div>
   </div>
 </div>
 
@@ -330,6 +371,36 @@ function buildFromFiles(list){
 
 // ---------- game state ----------
 const G = { state:'title', sectors:[], cur:null, score:0, lives:3, cleared:0, paused:false, bits:0, up:{} };
+// ---------- ship types ----------
+const SHIPS = [
+  {id:'patrol',  name:'Patrol',  tag:'Balanced all-rounder',      desc:'The standard patrol craft. Even speed, handling, firepower and shields: good at everything, best at nothing.', speed:1,    turn:1,    fire:1,    shield:1,    barrels:0, color:'#77ffff', fill:'#063445'},
+  {id:'racer',   name:'Racer',   tag:'Very fast and nimble, fragile', desc:"A stripped-down needle. Much faster, with quick, tight handling, but thin shields and light guns. Dodge, don't tank.", speed:1.38, turn:1.35, fire:0.7,  shield:0.6,  barrels:0, color:'#fbbf24', fill:'#3a2a05'},
+  {id:'fighter', name:'Fighter', tag:'Hits hard, moves quick',     desc:'Swept wings with wingtip cannons. Faster fire and above-average speed, paid for with a weaker shield.', speed:1.15, turn:1.12, fire:1.35, shield:0.75, barrels:0, color:'#f472b6', fill:'#3a0a28'},
+  {id:'bulwark', name:'Bulwark', tag:'Heavy shields, slow',        desc:'A flying fortress. A huge shield that also recharges faster and standard guns, but slow and heavy to turn.', speed:0.78, turn:0.78, fire:1,    shield:1.65, barrels:0, color:'#4ade80', fill:'#06301a'},
+  {id:'gunship', name:'Gunship', tag:'Maximum firepower, slow',    desc:'Four forward barrels on a reinforced hull. Starts with twin shots and the fastest fire rate, but takes its time getting anywhere.', speed:0.84, turn:0.82, fire:1.6,  shield:1.1,  barrels:1, color:'#fb923c', fill:'#3a1a05'},
+];
+let shipId = SHIPS.some(x => x.id === lsGet('iconpatrol.ship')) ? lsGet('iconpatrol.ship') : 'patrol';
+const shipDef = () => SHIPS.find(x => x.id === (G.ship || shipId)) || SHIPS[0];
+// top-down outlines, nose toward +x (units = 2D pixels)
+const SHIP_SHAPES = {
+  patrol:  {poly:[[16,0],[-11,-10],[-6,0],[-11,10]], tail:-7},
+  racer:   {poly:[[24,0],[4,-3],[-6,-4],[-13,-8],[-10,0],[-13,8],[-6,4],[4,3]], tail:-10, lines:[[[-2,-4],[-12,-12]],[[-2,4],[-12,12]]]},
+  fighter: {poly:[[16,0],[5,-4],[-3,-15],[-9,-15],[-6,-4],[-9,0],[-6,4],[-9,15],[-3,15],[5,4]], tail:-8, guns:[[-3,-15,9],[-3,15,9]]},
+  bulwark: {poly:[[12,0],[8,-9],[-4,-13],[-13,-9],[-13,9],[-4,13],[8,9]], tail:-13, inner:[[6,0],[2,-6],[-7,-6],[-7,6],[2,6]]},
+  gunship: {poly:[[10,-6],[6,-11],[-12,-11],[-14,-5],[-14,5],[-12,11],[6,11],[10,6]], tail:-14, guns:[[10,-8,10],[10,-3,13],[10,3,13],[10,8,10]]},
+};
+function drawShipShape(g, id, x, y, a, scale, color, fill, alpha=1){
+  const sh = SHIP_SHAPES[id] || SHIP_SHAPES.patrol;
+  g.save(); g.translate(x, y); g.rotate(a); g.scale(scale, scale); g.globalAlpha *= alpha;
+  g.lineWidth = 2/scale; g.strokeStyle = color; g.fillStyle = fill; g.shadowColor = color; g.shadowBlur = 14;
+  g.beginPath(); sh.poly.forEach(([px, py], i) => i ? g.lineTo(px, py) : g.moveTo(px, py)); g.closePath(); g.fill(); g.stroke();
+  g.shadowBlur = 0;
+  if (sh.inner){ g.beginPath(); sh.inner.forEach(([px, py], i) => i ? g.lineTo(px, py) : g.moveTo(px, py)); g.closePath(); g.stroke(); }
+  if (sh.lines) for (const [[x1, y1], [x2, y2]] of sh.lines){ g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
+  if (sh.guns){ g.lineWidth = 3/scale; for (const [gx, gy, len] of sh.guns){ g.beginPath(); g.moveTo(gx, gy); g.lineTo(gx + len, gy); g.stroke(); } }
+  g.restore();
+}
+
 const UPGRADES = [
   {k:'engine',  name:'Engine',          desc:'Stronger thrust and higher top speed.', costs:[15,30,45]},
   {k:'shield',  name:'Shield Capacity', desc:'Max shield 100 → 130 → 160 → 200.',     costs:[15,30,45]},
@@ -341,11 +412,11 @@ const UPGRADES = [
 ];
 function freshUpgrades(){ const u = {}; UPGRADES.forEach(x => u[x.k] = 0); return u; }
 function stats(){
-  const u = G.up;
+  const u = G.up, sd = shipDef();
   return {
-    thrust: 360*(1+0.18*u.engine), top: 400*(1+0.12*u.engine),
-    maxShield: [100,130,160,200][u.shield], regen: [2.5,5,7.5,10][u.regen],
-    cool: [0.16,0.13,0.11,0.09][u.blaster], barrel: u.barrel,
+    thrust: 360*(1+0.18*u.engine)*sd.speed, top: 400*(1+0.12*u.engine)*sd.speed,
+    maxShield: Math.round([100,130,160,200][u.shield]*sd.shield), regen: [2.5,5,7.5,10][u.regen]*sd.shield,
+    cool: [0.16,0.13,0.11,0.09][u.blaster]/sd.fire, barrel: Math.min(2, u.barrel + sd.barrels),
     tank: [100,140,180,220][u.tank], tankRegen: [11,14,17,20][u.tank],
     magnet: [70,150,230,310][u.magnet],
   };
@@ -368,10 +439,46 @@ let P, bullets=[], icons=[], viruses=[], parts=[], msgs=[], timers=[], boss=null
 
 function gateNeed(){ return Math.min(5, G.sectors.length); }
 
-function newRun(sectors){
-  G.sectors = sectors; G.score = 0; G.lives = 3; G.cleared = 0; G.bits = 0; G.up = freshUpgrades();
+
+// ---------- hangar (pick a ship before each run) ----------
+let pendingSectors = null, hangarSel = shipId;
+const STAT_ROWS = [['Speed','speed'],['Handling','turn'],['Firepower','fire'],['Shield','shield']];
+function showHangar(sectors){ pendingSectors = sectors; hideAll(); G.state = 'hangar'; hangarSel = shipId; renderHangar(); $('hangar').classList.add('show'); navFirst(); }
+function renderHangar(){
+  const list = $('shipList'), focusedIdx = navEl ? [...list.querySelectorAll('button')].indexOf(navEl) : -1;
+  list.innerHTML = '';
+  for (const sd of SHIPS){
+    const b = document.createElement('button'); b.className = 'shipCard' + (sd.id === hangarSel ? ' sel' : '');
+    const c = document.createElement('canvas'); c.width = 168; c.height = 96; b.appendChild(c);
+    const g = c.getContext('2d'); drawShipShape(g, sd.id, 84, 48, -Math.PI/2, 2.1, sd.color, sd.fill);
+    const t = document.createElement('div'); t.innerHTML = `<b style="color:${sd.color}">${sd.name}</b><small>${sd.tag}</small>`; b.appendChild(t);
+    b.onclick = () => { hangarSel = sd.id; renderHangar(); beep(700,0.04,'triangle',0.04); };
+    list.appendChild(b);
+  }
+  if (focusedIdx >= 0){ const bs = list.querySelectorAll('button'); if (bs[focusedIdx]) setNav(bs[focusedIdx]); }
+  const sd = SHIPS.find(x => x.id === hangarSel);
+  $('shipName').textContent = sd.name; $('shipName').style.color = sd.color; $('shipTag').textContent = sd.tag; $('shipDesc').textContent = sd.desc;
+  $('shipStats').innerHTML = STAT_ROWS.map(([lab, k]) => `<div class="statrow"><span>${lab}</span><div class="statbar"><i style="width:${Math.min(100, sd[k]/1.7*100)}%;background:${sd[k] > 1.05 ? '#4ade80' : sd[k] < 0.95 ? '#f87171' : '#5ff'}"></i></div><span class="v">${Math.round(sd[k]*100)}%</span></div>`).join('')
+    + (sd.barrels ? '<div class="statrow"><span>Bonus</span><span style="grid-column:2/4;color:#fde68a">Starts with twin shots (Multi-Barrel level 1)</span></div>' : '');
+}
+function launchRun(){ shipId = hangarSel; lsSet('iconpatrol.ship', shipId); const sec = pendingSectors; pendingSectors = null; startRun(sec); }
+function newRun(sectors){ showHangar(sectors); }
+function startRun(sectors){
+  G.ship = shipId; G.sectors = sectors; G.score = 0; G.lives = 3; G.cleared = 0; G.bits = 0; G.up = freshUpgrades();
   showMap();
 }
+function drawHangarPreview(t){
+  const c = $('shipPrev'); if (!c) return; const g = c.getContext('2d'), w = c.width, h = c.height;
+  const sd = SHIPS.find(x => x.id === hangarSel), sh = SHIP_SHAPES[sd.id];
+  g.clearRect(0,0,w,h);
+  g.strokeStyle = 'rgba(0,200,255,.08)'; g.lineWidth = 1; g.beginPath();
+  const off = (t*30) % 30; for (let y = -30 + off; y < h; y += 30){ g.moveTo(0,y); g.lineTo(w,y); } for (let x = 0; x < w; x += 30){ g.moveTo(x,0); g.lineTo(x,h); } g.stroke();
+  const a = -Math.PI/2 + Math.sin(t*0.9)*0.25, sc = 4.2;
+  g.save(); g.translate(w/2, h/2 + 10); g.rotate(a); g.strokeStyle = '#fa3'; g.shadowColor = '#f80'; g.shadowBlur = 12; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(sh.tail*sc, -4*sc); g.lineTo((sh.tail - 10 - Math.random()*6)*sc, 0); g.lineTo(sh.tail*sc, 4*sc); g.stroke(); g.restore();
+  drawShipShape(g, sd.id, w/2, h/2 + 10, a, sc, sd.color, sd.fill);
+}
+
 
 function resetField(){
   feedClear();
@@ -432,7 +539,7 @@ addEventListener('blur', () => { for (const k in keys) keys[k]=false; if (G.stat
 
 // ---------- overlays ----------
 const $ = id => document.getElementById(id);
-function hideAll(){ ['title','map','end','settings','pause'].forEach(id => $(id).classList.remove('show')); settingsOpen = null; setNav(null); }
+function hideAll(){ ['title','map','end','settings','pause','hangar'].forEach(id => $(id).classList.remove('show')); settingsOpen = null; setNav(null); }
 
 // ---------- settings + pause menus ----------
 const IN_APP = /IconPatrolApp/.test(navigator.userAgent);
@@ -479,7 +586,7 @@ function syncMenus(){
 window.onBack = () => {
   if (settingsOpen){ closeSettings(); return true; }
   if (G.state === 'play'){ G.paused = !G.paused; return true; }
-  if (G.state === 'map' || G.state === 'end'){ showTitle(); return true; }
+  if (G.state === 'map' || G.state === 'end' || G.state === 'hangar'){ showTitle(); return true; }
   return false;
 };
 function abortToMap(){ if (G.state !== 'play' || G.lives < 0) return; if (G.cur && G.cur._finish){ timers = []; G.cur._finish(); return; } timers = []; if (G.cur) G.cur._waiting = false; showMap(); }
@@ -613,6 +720,7 @@ function showTitle(){ hideAll(); G.state='title'; showHi(); $('title').classList
 function showMap(){
   feedClear();
   hideAll(); G.state='map';
+  $('mShip').textContent = shipDef().name; $('mShip').style.color = shipDef().color;
   $('mScore').textContent = G.score; $('mLives').textContent = G.lives; $('mClean').textContent = G.cleared + ' / ' + G.sectors.length;
   const box = $('sectors'); box.innerHTML = '';
   const need = gateNeed();
@@ -689,6 +797,8 @@ if (window.IconApp){
   else { window.__updateStatus({state:'idle', current: IconApp.version()}); setTimeout(() => IconApp.checkForUpdate(false), 1200); }
 }
 $('sBack').onclick = closeSettings;
+$('launchBtn').onclick = launchRun;
+$('hangarBack').onclick = showTitle;
 $('pResume').onclick = () => { G.paused = false; };
 $('pSettings').onclick = () => openSettings('pause');
 $('pMap').onclick = () => { G.paused = false; abortToMap(); };
@@ -722,7 +832,7 @@ function update(dt){
     let tTurn = 0, tThrust = false;
     if (TC.active && TC.mag > 0.25){ let d = Math.atan2(TC.y, TC.x) - P.a; d = Math.atan2(Math.sin(d), Math.cos(d)); tTurn = Math.max(-1, Math.min(1, d*2.5)); tThrust = TC.mag > 0.7; }
     const turn = (keys.right?1:0) - (keys.left?1:0) + pad.turn + tTurn;
-    P.a += 4.2*Math.max(-1, Math.min(1, turn))*dt;
+    P.a += 4.2*shipDef().turn*Math.max(-1, Math.min(1, turn))*dt;
     const ca = Math.cos(P.a), sa = Math.sin(P.a);
     P.boosting = !!(keys.boost || pad.boost || TC.boost) && P.boost > 0;
     P.thrust = !!(keys.up || pad.up || tThrust) || P.boosting;
@@ -964,12 +1074,11 @@ function drawShip(x,y,a,thrust,alpha=1,boosting=false,fw=0,t=0){
     ctx.restore();
   }
   ctx.save(); ctx.translate(x,y); ctx.rotate(a); ctx.globalAlpha = alpha;
+  const sd = shipDef(), tl = SHIP_SHAPES[sd.id].tail;
   if (boosting){ ctx.shadowColor = '#fff'; ctx.shadowBlur = 20; ctx.strokeStyle = '#dff'; ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.moveTo(-7,-5); ctx.lineTo(-26-Math.random()*14,0); ctx.lineTo(-7,5); ctx.stroke(); }
-  ctx.shadowColor = '#0ff'; ctx.shadowBlur = 14;
-  ctx.strokeStyle = '#7ff'; ctx.fillStyle = '#063445'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(16,0); ctx.lineTo(-11,-10); ctx.lineTo(-6,0); ctx.lineTo(-11,10); ctx.closePath(); ctx.fill(); ctx.stroke();
-  if (thrust){ ctx.strokeStyle='#fa3'; ctx.shadowColor='#f80'; ctx.beginPath(); ctx.moveTo(-7,-4); ctx.lineTo(-16-Math.random()*8,0); ctx.lineTo(-7,4); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(tl,-5); ctx.lineTo(tl-19-Math.random()*14,0); ctx.lineTo(tl,5); ctx.stroke(); }
+  drawShipShape(ctx, sd.id, 0, 0, 0, 1, sd.color, sd.fill);
+  if (thrust){ ctx.lineWidth = 2; ctx.strokeStyle='#fa3'; ctx.shadowColor='#f80'; ctx.shadowBlur = 14; ctx.beginPath(); ctx.moveTo(tl,-4); ctx.lineTo(tl-9-Math.random()*8,0); ctx.lineTo(tl,4); ctx.stroke(); }
   ctx.restore();
 }
 
@@ -1138,7 +1247,7 @@ function drawHUD(){
   ctx.fillStyle = '#2a1f08'; ctx.fillRect(16, 49, tw, 5);
   ctx.fillStyle = P.boosting ? '#fff' : '#fbbf24'; ctx.fillRect(16, 49, tw*P.boost/S.tank, 5);
   ctx.fillStyle = '#7ab'; ctx.fillText('BOOST', tw+22, 55);
-  for (let i=0;i<Math.max(0,G.lives);i++) drawShip(24+i*22, 74, -Math.PI/2, false, 0.8);
+  for (let i=0;i<Math.max(0,G.lives);i++) drawShipShape(ctx, shipDef().id, 24+i*24, 76, -Math.PI/2, 0.7, shipDef().color, shipDef().fill, 0.8);
   ctx.font = 'bold 14px Consolas,monospace'; ctx.fillStyle = '#7ff'; ctx.fillText('◆ ' + G.bits, 16, 104);
   let px = 16;
   for (const [k, lab] of [['spread','WIDE'],['rapid','RAPID'],['firewall','FIREWALL']]){
@@ -1175,6 +1284,7 @@ function loop(now){
     if (banner){ const a = Math.min(1, banner.life*2, (banner.max-banner.life)*4); ctx.globalAlpha = a; ctx.font = `bold ${Math.round(30*Math.max(0.55, Math.min(1, H/520)))}px Consolas,monospace`; ctx.fillStyle = '#5ff'; ctx.shadowColor='#0ff'; ctx.shadowBlur = 18; ctx.fillText(banner.t, W/2, H*0.42); ctx.shadowBlur = 0; ctx.globalAlpha = 1; }
     if (G.state === 'play') drawHUD();
   }
+  if (G.state === 'hangar') drawHangarPreview(t);
   syncMenus();
   requestAnimationFrame(loop);
 }

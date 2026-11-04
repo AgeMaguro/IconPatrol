@@ -40,6 +40,30 @@
   .note{font-size:12px;color:#678;margin-top:12px;line-height:1.5}
   input[type=file]{display:none}
   #pause,#settings{z-index:8}
+  .panel.wide{width:min(920px,94vw)}
+  .hangar{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:16px;align-items:start}
+  @media (max-width:640px){.hangar{grid-template-columns:1fr}}
+  .shipList{display:flex;flex-direction:column;gap:7px}
+  .shipCard{display:flex;align-items:center;gap:10px;text-align:left;font-weight:normal;font-size:12px;color:#cfeaff;background:#0a1a33;border:1px solid #2af4;box-shadow:none;padding:4px 10px}
+  .shipCard canvas{width:70px;height:40px;flex:none}
+  .shipCard b{display:block;font-size:15px}
+  .shipCard small{color:#8ab}
+  .shipCard.sel{border-color:#5ff;background:#0c2a44;box-shadow:0 0 14px #0ff5}
+  #shipPrev{display:block;width:100%;max-width:440px;aspect-ratio:36/20;background:radial-gradient(#0c2240,#040814 70%);border:1px solid #2af3;border-radius:8px}
+  @media (max-height:520px){
+    #hangar .panel{padding:12px 18px;max-height:96vh} #hangar h2{margin:0 0 8px;font-size:18px}
+    .hangar{grid-template-columns:200px 1fr;gap:12px} .shipList{gap:4px}
+    .shipCard{padding:2px 8px} .shipCard canvas{width:46px;height:26px} .shipCard b{font-size:13px} .shipCard small{display:none}
+    #shipPrev{max-width:250px} #shipName{margin:4px 0 0;font-size:18px} #shipDesc{display:none} .statrow{margin:3px 0}
+    #hangar .btns{margin-top:8px}
+  }
+  #shipName{margin:8px 0 0;font-size:24px;letter-spacing:2px}
+  .tagl{margin:0 0 6px;color:#9cd;font-size:13px}
+  .statrow{display:grid;grid-template-columns:84px 1fr 48px;align-items:center;gap:8px;font-size:12px;color:#9bc;margin:5px 0}
+  .statbar{height:9px;background:#173048;border-radius:5px;overflow:hidden}
+  .statbar i{display:block;height:100%}
+  .statrow .v{text-align:right;color:#cfeaff}
+
   .panel.narrow{width:min(470px,92vw)}
   .menu{display:flex;flex-direction:column;gap:10px;margin-top:6px}
   .menu button{font-size:16px;padding:13px 18px}
@@ -194,11 +218,28 @@
 <div class="overlay" id="map">
   <div class="panel">
     <h2>DRIVE MAP</h2>
-    <div class="stats"><div>SCORE <b id="mScore">0</b></div><div>LIVES <b id="mLives">3</b></div><div>CLEAN <b id="mClean">0</b></div></div>
+    <div class="stats"><div>SHIP <b id="mShip">-</b></div><div>SCORE <b id="mScore">0</b></div><div>LIVES <b id="mLives">3</b></div><div>CLEAN <b id="mClean">0</b></div></div>
     <div class="sectors" id="sectors"></div>
     <div class="shopHead"><h2 style="margin:0">SHIP UPGRADES</h2><div class="bits">◆ <b id="mBits">0</b> bits</div></div>
     <div class="shop" id="shop"></div>
     <div class="btns"><button class="alt" id="quitBtn">Quit to title</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="hangar">
+  <div class="panel wide">
+    <h2>CHOOSE YOUR SHIP</h2>
+    <div class="hangar">
+      <div class="shipList" id="shipList"></div>
+      <div>
+        <canvas id="shipPrev" width="440" height="244"></canvas>
+        <h3 id="shipName"></h3>
+        <p class="tagl" id="shipTag"></p>
+        <p class="sub" style="margin:0 0 8px" id="shipDesc"></p>
+        <div id="shipStats"></div>
+      </div>
+    </div>
+    <div class="btns"><button id="launchBtn">🚀 Launch</button><button class="alt" id="hangarBack">Back</button></div>
   </div>
 </div>
 
@@ -388,6 +429,36 @@ function buildFromFiles(list){
 
 // ---------- upgrades & pickups ----------
 const G = { state:'title', sectors:[], cur:null, score:0, lives:3, cleared:0, paused:false, bits:0, up:{} };
+// ---------- ship types ----------
+const SHIPS = [
+  {id:'patrol',  name:'Patrol',  tag:'Balanced all-rounder',      desc:'The standard patrol craft. Even speed, handling, firepower and shields: good at everything, best at nothing.', speed:1,    turn:1,    fire:1,    shield:1,    barrels:0, color:'#77ffff', fill:'#063445'},
+  {id:'racer',   name:'Racer',   tag:'Very fast and nimble, fragile', desc:"A stripped-down needle. Much faster, with quick, tight handling, but thin shields and light guns. Dodge, don't tank.", speed:1.38, turn:1.35, fire:0.7,  shield:0.6,  barrels:0, color:'#fbbf24', fill:'#3a2a05'},
+  {id:'fighter', name:'Fighter', tag:'Hits hard, moves quick',     desc:'Swept wings with wingtip cannons. Faster fire and above-average speed, paid for with a weaker shield.', speed:1.15, turn:1.12, fire:1.35, shield:0.75, barrels:0, color:'#f472b6', fill:'#3a0a28'},
+  {id:'bulwark', name:'Bulwark', tag:'Heavy shields, slow',        desc:'A flying fortress. A huge shield that also recharges faster and standard guns, but slow and heavy to turn.', speed:0.78, turn:0.78, fire:1,    shield:1.65, barrels:0, color:'#4ade80', fill:'#06301a'},
+  {id:'gunship', name:'Gunship', tag:'Maximum firepower, slow',    desc:'Four forward barrels on a reinforced hull. Starts with twin shots and the fastest fire rate, but takes its time getting anywhere.', speed:0.84, turn:0.82, fire:1.6,  shield:1.1,  barrels:1, color:'#fb923c', fill:'#3a1a05'},
+];
+let shipId = SHIPS.some(x => x.id === lsGet('iconpatrol.ship')) ? lsGet('iconpatrol.ship') : 'patrol';
+const shipDef = () => SHIPS.find(x => x.id === (G.ship || shipId)) || SHIPS[0];
+// top-down outlines, nose toward +x (units = 2D pixels)
+const SHIP_SHAPES = {
+  patrol:  {poly:[[16,0],[-11,-10],[-6,0],[-11,10]], tail:-7},
+  racer:   {poly:[[24,0],[4,-3],[-6,-4],[-13,-8],[-10,0],[-13,8],[-6,4],[4,3]], tail:-10, lines:[[[-2,-4],[-12,-12]],[[-2,4],[-12,12]]]},
+  fighter: {poly:[[16,0],[5,-4],[-3,-15],[-9,-15],[-6,-4],[-9,0],[-6,4],[-9,15],[-3,15],[5,4]], tail:-8, guns:[[-3,-15,9],[-3,15,9]]},
+  bulwark: {poly:[[12,0],[8,-9],[-4,-13],[-13,-9],[-13,9],[-4,13],[8,9]], tail:-13, inner:[[6,0],[2,-6],[-7,-6],[-7,6],[2,6]]},
+  gunship: {poly:[[10,-6],[6,-11],[-12,-11],[-14,-5],[-14,5],[-12,11],[6,11],[10,6]], tail:-14, guns:[[10,-8,10],[10,-3,13],[10,3,13],[10,8,10]]},
+};
+function drawShipShape(g, id, x, y, a, scale, color, fill, alpha=1){
+  const sh = SHIP_SHAPES[id] || SHIP_SHAPES.patrol;
+  g.save(); g.translate(x, y); g.rotate(a); g.scale(scale, scale); g.globalAlpha *= alpha;
+  g.lineWidth = 2/scale; g.strokeStyle = color; g.fillStyle = fill; g.shadowColor = color; g.shadowBlur = 14;
+  g.beginPath(); sh.poly.forEach(([px, py], i) => i ? g.lineTo(px, py) : g.moveTo(px, py)); g.closePath(); g.fill(); g.stroke();
+  g.shadowBlur = 0;
+  if (sh.inner){ g.beginPath(); sh.inner.forEach(([px, py], i) => i ? g.lineTo(px, py) : g.moveTo(px, py)); g.closePath(); g.stroke(); }
+  if (sh.lines) for (const [[x1, y1], [x2, y2]] of sh.lines){ g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
+  if (sh.guns){ g.lineWidth = 3/scale; for (const [gx, gy, len] of sh.guns){ g.beginPath(); g.moveTo(gx, gy); g.lineTo(gx + len, gy); g.stroke(); } }
+  g.restore();
+}
+
 const UPGRADES = [
   {k:'engine',  name:'Engine',          desc:'Stronger thrust and higher top speed.', costs:[15,30,45]},
   {k:'shield',  name:'Shield Capacity', desc:'Max shield 100 → 130 → 160 → 200.',     costs:[15,30,45]},
@@ -400,11 +471,11 @@ const UPGRADES = [
 ];
 function freshUpgrades(){ const u = {}; UPGRADES.forEach(x => u[x.k] = 0); return u; }
 function stats(){
-  const u = G.up;
+  const u = G.up, sd = shipDef();
   return {
-    thrust: 150*(1+0.18*u.engine), top: 135*(1+0.12*u.engine),
-    maxShield: [100,130,160,200][u.shield], regen: [2.5,5,7.5,10][u.regen],
-    cool: [0.15,0.12,0.10,0.085][u.blaster], barrel: u.barrel,
+    thrust: 150*(1+0.18*u.engine)*sd.speed, top: 135*(1+0.12*u.engine)*sd.speed,
+    maxShield: Math.round([100,130,160,200][u.shield]*sd.shield), regen: [2.5,5,7.5,10][u.regen]*sd.shield,
+    cool: [0.15,0.12,0.10,0.085][u.blaster]/sd.fire, barrel: Math.min(2, u.barrel + sd.barrels),
     tank: [100,140,180,220][u.tank], tankRegen: [11,14,17,20][u.tank],
     magnet: [60,130,200,280][u.magnet], radar: [700,1000,1400][u.radar], radarPick: u.radar > 0,
   };
@@ -457,19 +528,10 @@ const basic = (c, o={}) => new THREE.MeshBasicMaterial(Object.assign({color:c}, 
 
 // ship
 const ship = new THREE.Group();
-(function buildShip(){
-  const N=[0,0,-5.5], L=[-4.2,0,2.6], Rr=[4.2,0,2.6], T=[0,1.3,1.4], B=[0,-0.7,1.4], C=[0,0,2.2];
-  const tris=[N,L,T, N,T,Rr, L,C,T, T,C,Rr, N,B,L, N,Rr,B, L,B,C, B,Rr,C];
-  const body = new THREE.BufferGeometry(); body.setAttribute('position', new THREE.Float32BufferAttribute(tris.flat(),3));
-  ship.add(new THREE.Mesh(body, basic(0x063445, {side:THREE.DoubleSide})));
-  ship.add(new THREE.LineSegments(new THREE.EdgesGeometry(body), lineMat(0x77ffff)));
-  const fin = new THREE.BufferGeometry(); fin.setAttribute('position', new THREE.Float32BufferAttribute([0,1.3,1.4, 0,2.6,2.8, 0,0.2,2.2],3));
-  ship.add(new THREE.LineSegments(new THREE.EdgesGeometry(fin), lineMat(0x77ffff)));
-  ship.add(new THREE.Mesh(fin, basic(0x0b4a5e, {side:THREE.DoubleSide})));
-})();
 const flame = glowSprite(0xffaa33, 6, 0.9); flame.position.set(0,0,3.2); ship.add(flame);
 const fwShell = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(9,1)), new THREE.LineBasicMaterial({color:0xc084fc, transparent:true, opacity:0.6}));
 ship.add(fwShell); fwShell.visible = false;
+// (ship body is added by applyShipMesh() once the ship types are defined)
 scene.add(ship);
 
 // shared geometry
@@ -541,7 +603,83 @@ function resetField(){
   ship.position.copy(P.pos); ship.quaternion.copy(P.q); camera.position.copy(P.pos).add(V(0,4,16)); camera.quaternion.copy(P.q);
 }
 function gateNeed(){ return Math.min(5, G.sectors.length); }
-function newRun(sectors){ G.sectors = sectors; G.score = 0; G.lives = 3; G.cleared = 0; G.bits = 0; G.up = freshUpgrades(); showMap(); }
+
+// ---------- hangar (pick a ship before each run) ----------
+let pendingSectors = null, hangarSel = shipId;
+const STAT_ROWS = [['Speed','speed'],['Handling','turn'],['Firepower','fire'],['Shield','shield']];
+function showHangar(sectors){ pendingSectors = sectors; hideAll(); G.state = 'hangar'; hangarSel = shipId; renderHangar(); $('hangar').classList.add('show'); navFirst(); }
+function renderHangar(){
+  const list = $('shipList'), focusedIdx = navEl ? [...list.querySelectorAll('button')].indexOf(navEl) : -1;
+  list.innerHTML = '';
+  for (const sd of SHIPS){
+    const b = document.createElement('button'); b.className = 'shipCard' + (sd.id === hangarSel ? ' sel' : '');
+    const c = document.createElement('canvas'); c.width = 168; c.height = 96; b.appendChild(c);
+    const g = c.getContext('2d'); drawShipShape(g, sd.id, 84, 48, -Math.PI/2, 2.1, sd.color, sd.fill);
+    const t = document.createElement('div'); t.innerHTML = `<b style="color:${sd.color}">${sd.name}</b><small>${sd.tag}</small>`; b.appendChild(t);
+    b.onclick = () => { hangarSel = sd.id; renderHangar(); beep(700,0.04,'triangle',0.04); };
+    list.appendChild(b);
+  }
+  if (focusedIdx >= 0){ const bs = list.querySelectorAll('button'); if (bs[focusedIdx]) setNav(bs[focusedIdx]); }
+  const sd = SHIPS.find(x => x.id === hangarSel);
+  $('shipName').textContent = sd.name; $('shipName').style.color = sd.color; $('shipTag').textContent = sd.tag; $('shipDesc').textContent = sd.desc;
+  $('shipStats').innerHTML = STAT_ROWS.map(([lab, k]) => `<div class="statrow"><span>${lab}</span><div class="statbar"><i style="width:${Math.min(100, sd[k]/1.7*100)}%;background:${sd[k] > 1.05 ? '#4ade80' : sd[k] < 0.95 ? '#f87171' : '#5ff'}"></i></div><span class="v">${Math.round(sd[k]*100)}%</span></div>`).join('')
+    + (sd.barrels ? '<div class="statrow"><span>Bonus</span><span style="grid-column:2/4;color:#fde68a">Starts with twin shots (Multi-Barrel level 1)</span></div>' : '');
+}
+function launchRun(){ shipId = hangarSel; lsSet('iconpatrol.ship', shipId); const sec = pendingSectors; pendingSectors = null; startRun(sec); }
+function newRun(sectors){ showHangar(sectors); }
+function startRun(sectors){ G.ship = shipId; applyShipMesh(); G.sectors = sectors; G.score = 0; G.lives = 3; G.cleared = 0; G.bits = 0; G.up = freshUpgrades(); showMap(); }
+
+// 3D ship models: the 2D outline extruded into a hull, plus fins / barrels / shield ring per type
+function buildShipMesh(id){
+  const sd = SHIPS.find(x => x.id === id) || SHIPS[0], sh = SHIP_SHAPES[sd.id], g = new THREE.Group();
+  const k = 0.34, depth = {patrol:1.3, racer:0.8, fighter:1.0, bulwark:2.6, gunship:2.0}[sd.id];
+  const shape = new THREE.Shape(sh.poly.map(([px, py]) => new THREE.Vector2(py*k, px*k)));
+  const geo = new THREE.ExtrudeGeometry(shape, {depth, bevelEnabled:true, bevelThickness:0.3, bevelSize:0.3, bevelSegments:1});
+  geo.rotateX(-Math.PI/2); geo.translate(0, -depth/2, 0);
+  const col = new THREE.Color(sd.color), fill = new THREE.Color(sd.fill);
+  g.add(new THREE.Mesh(geo, basic(fill)));
+  g.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 20), lineMat(col)));
+  const rearZ = -sh.tail*k, top = depth/2 + 0.3;
+  const fin = (x, h, len) => {
+    const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute([x,top,rearZ-len, x,top+h,rearZ+0.4, x,top,rearZ+0.4],3));
+    g.add(new THREE.Mesh(fg, basic(fill, {side:THREE.DoubleSide}))); g.add(new THREE.LineSegments(new THREE.EdgesGeometry(fg), lineMat(col)));
+  };
+  if (sd.id === 'patrol') fin(0, 1.4, 2.2);
+  if (sd.id === 'racer'){ fin(-1.1, 1.1, 2.6); fin(1.1, 1.1, 2.6); }
+  if (sd.id === 'fighter') fin(0, 1.0, 2.0);
+  if (sh.guns) for (const [gx, gy, len] of sh.guns){
+    const cg = new THREE.CylinderGeometry(sd.id === 'gunship' ? 0.3 : 0.22, sd.id === 'gunship' ? 0.3 : 0.22, len*k, 8); cg.rotateX(Math.PI/2);
+    const m = new THREE.Mesh(cg, basic(col)); m.position.set(gy*k, sd.id === 'gunship' ? 0.15 : 0, -(gx + len/2)*k); g.add(m);
+  }
+  if (sd.id === 'gunship'){ const tb = new THREE.BoxGeometry(2.2, 0.9, 2.4); const tm = new THREE.Mesh(tb, basic(fill)); tm.position.set(0, top + 0.3, 0.6); g.add(tm); const te = new THREE.LineSegments(new THREE.EdgesGeometry(tb), lineMat(col)); te.position.copy(tm.position); g.add(te); }
+  if (sd.id === 'bulwark'){ const rg = new THREE.TorusGeometry(4.6, 0.12, 6, 40); rg.rotateX(Math.PI/2); const r = new THREE.Mesh(rg, basic(col, {transparent:true, opacity:0.7})); r.position.y = 0; g.add(r); }
+  g.userData.tailZ = rearZ + 0.8;
+  return g;
+}
+function applyShipMesh(){
+  if (ship.userData.body) ship.remove(ship.userData.body);
+  const body = buildShipMesh(shipDef().id); ship.add(body); ship.userData.body = body;
+  flame.position.set(0, 0, body.userData.tailZ);
+}
+applyShipMesh();
+let prevR = null, prevScene = null, prevCam = null, prevShip = null, prevId = null;
+function drawHangarPreview(t){
+  const c = $('shipPrev'); if (!c) return;
+  try {
+    if (!prevR){
+      prevR = new THREE.WebGLRenderer({canvas:c, antialias:true, alpha:true});
+      prevScene = new THREE.Scene(); prevCam = new THREE.PerspectiveCamera(32, 36/20, 0.1, 200);
+      prevCam.position.set(0, 8, 20); prevCam.lookAt(0, -0.5, 0);
+      const grid = new THREE.GridHelper(40, 20, 0x0b6f94, 0x0b3a52); grid.position.y = -3; prevScene.add(grid);
+    }
+    const w = c.clientWidth, h = c.clientHeight;
+    if (w && h && (prevR._w !== w || prevR._h !== h)){ prevR._w = w; prevR._h = h; prevR.setPixelRatio(DPR); prevR.setSize(w, h, false); prevCam.aspect = w/h; prevCam.updateProjectionMatrix(); }
+    if (prevId !== hangarSel){ if (prevShip) prevScene.remove(prevShip); prevShip = buildShipMesh(hangarSel); prevScene.add(prevShip); prevId = hangarSel; }
+    prevShip.rotation.y = t*0.7; prevShip.rotation.z = Math.sin(t*0.9)*0.18; prevShip.position.y = Math.sin(t*1.3)*0.3;
+    prevR.render(prevScene, prevCam);
+  } catch(e){}
+}
+
 
 function startSector(sec){
   G.cur = sec; sec._waiting = false; resetField(); queue = sec.files.slice();
@@ -725,7 +863,7 @@ addEventListener('gamepadconnected', e => { padUsed = true; toast('🎮 ' + (e.g
 addEventListener('gamepaddisconnected', () => { toast('Controller disconnected'); if (G.state==='play') G.paused = true; });
 
 // ---------- overlays ----------
-function hideAll(){ ['title','map','end','settings','pause'].forEach(id => $(id).classList.remove('show')); settingsOpen = null; setNav(null); }
+function hideAll(){ ['title','map','end','settings','pause','hangar'].forEach(id => $(id).classList.remove('show')); settingsOpen = null; setNav(null); }
 
 // ---------- settings + pause menus ----------
 const IN_APP = /IconPatrolApp/.test(navigator.userAgent);
@@ -776,7 +914,7 @@ function syncMenus(){
 window.onBack = () => {
   if (settingsOpen){ closeSettings(); return true; }
   if (G.state === 'play'){ G.paused = !G.paused; return true; }
-  if (G.state === 'map' || G.state === 'end'){ showTitle(); return true; }
+  if (G.state === 'map' || G.state === 'end' || G.state === 'hangar'){ showTitle(); return true; }
   return false;
 };
 function abortToMap(){ if (G.state !== 'play' || G.lives < 0) return; if (G.cur && G.cur._finish){ timers = []; G.cur._finish(); return; } timers = []; if (G.cur) G.cur._waiting = false; showMap(); }
@@ -869,6 +1007,7 @@ function showTitle(){ hideAll(); unlockMouse(); G.state = 'title'; showHi(); $('
 function showMap(){
   feedClear();
   hideAll(); unlockMouse(); G.state = 'map';
+  $('mShip').textContent = shipDef().name; $('mShip').style.color = shipDef().color;
   $('mScore').textContent = G.score; $('mLives').textContent = G.lives; $('mClean').textContent = G.cleared + ' / ' + G.sectors.length;
   const box = $('sectors'); box.innerHTML = '';
   const need = gateNeed();
@@ -944,6 +1083,8 @@ if (window.IconApp){
   else { window.__updateStatus({state:'idle', current: IconApp.version()}); setTimeout(() => IconApp.checkForUpdate(false), 1200); }
 }
 $('sBack').onclick = closeSettings;
+$('launchBtn').onclick = launchRun;
+$('hangarBack').onclick = showTitle;
 $('pResume').onclick = () => { G.paused = false; relockIfWanted(); };
 $('pSettings').onclick = () => openSettings('pause');
 $('pMap').onclick = () => { G.paused = false; abortToMap(); };
@@ -1103,7 +1244,7 @@ function update(dt){
     const inYaw   = Math.max(-1, Math.min(1, kb('yl','yr') + pad.yaw + tcY - mouse.sx));
     const inRoll  = Math.max(-1, Math.min(1, kb('rl','rr') + pad.roll + (TC.rollL?1:0) - (TC.rollR?1:0)));
     // rotational inertia: turn rate accelerates/decelerates instead of snapping; boosting makes the ship stiffer
-    const agil = P.boosting ? 0.7 : 1;
+    const agil = (P.boosting ? 0.7 : 1) * shipDef().turn;
     let tgtX = inPitch*1.45*agil, tgtY = inYaw*1.3*agil, tgtZ = inRoll*2.3*agil;
     const bankNow = Math.asin(Math.max(-1, Math.min(1, right.y)));  // + = left wing down (vs. the navball horizon)
     if (flightMode === 'coord' && Math.abs(inRoll) < 0.05 && Math.abs(up.y) > 0.2){
@@ -1818,6 +1959,7 @@ function loop(now){
     renderer.setScissorTest(false); renderer.autoClear = true;
   }
   drawHUD(t);
+  if (G.state === 'hangar') drawHangarPreview(t);
   syncMenus();
   requestAnimationFrame(loop);
 }
