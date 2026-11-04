@@ -11,6 +11,9 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.22 - 2026-11-03
+- 3D first person: the cockpit HUD tilt is reversed, so it now leans into the turn (turn left, the left side dips). The sideways sway is unchanged.
+
 ## 1.0.21 - 2026-11-03
 - 3D: the aim-lead marker now shows as soon as a target is being tracked (amber brackets), not only once locked, and has its own look: a gold ring with a white center on a dark backing, with a dashed gold line back to the target. Aim the crosshair at it so shots meet a moving target.
 

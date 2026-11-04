@@ -1588,7 +1588,8 @@ function updateCamera(dt){
     const shake = P.boosting ? (Math.random()-0.5)*2.2 : 0;
     const tx = P.alive ? Math.max(-48, Math.min(48, P.rate.y*26))*sc + shake : 0;
     const ty = P.alive ? Math.max(-30, Math.min(30, P.rate.x*16))*sc + shake*0.6 : 0;
-    const tr = P.alive ? Math.max(-0.16, Math.min(0.16, -P.rate.z*0.018 + (P.visBank || 0)*0.14)) : 0;
+    // tilt follows the turn (reversed in 1.0.22: it used to lean the other way)
+    const tr = P.alive ? Math.max(-0.16, Math.min(0.16, P.rate.z*0.018 - (P.visBank || 0)*0.14)) : 0;
     CK.x += (tx - CK.x)*k; CK.y += (ty - CK.y)*k; CK.r += (tr - CK.r)*k;
   }
   if (fpv){
