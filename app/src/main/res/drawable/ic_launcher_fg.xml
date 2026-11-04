@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+    <!-- radar ring -->
+    <path android:strokeColor="#1A6E8C" android:strokeWidth="1.5" android:fillColor="#00000000"
+        android:pathData="M54,26 a28,28 0 1,1 -0.1,0 z" />
+    <!-- a file icon being rescued -->
+    <path android:fillColor="#E8F1FF" android:pathData="M64,30 h10 l5,5 v15 h-15 z" />
+    <path android:fillColor="#4ADE80" android:pathData="M64,43 h15 v5 h-15 z" />
+    <!-- the ship -->
+    <path android:fillColor="#063445" android:strokeColor="#77FFFF" android:strokeWidth="2.5"
+        android:strokeLineJoin="round" android:pathData="M47,38 L64,74 L50,66 L36,74 Z" />
+    <!-- shots -->
+    <path android:strokeColor="#BFFFFF" android:strokeWidth="2.5" android:strokeLineCap="round"
+        android:pathData="M48,30 L49,25 M44,33 L45,28" />
+</vector>

@@ -1,0 +1,74 @@
+# Builds the Icon Patrol Android app and publishes IconPatrol.apk as the newest GitHub release.
+# Stable download link: https://github.com/AgeMaguro/IconPatrol/releases/latest/download/IconPatrol.apk
+# The app's in-game updater reads this repo's latest release (name "Icon Patrol 1.0.N", N = versionCode).
+name: Icon Patrol APK
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'past-versions/**'
+      - '**/*.md'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apk
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      # +10 so versions continue above the builds made in Claude-HQ (1.0.1 - 1.0.3)
+      VC_OFFSET: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0 (pinned to exact commit)
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1 (pinned)
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3 (pinned)
+        with:
+          gradle-version: '8.9'
+      - name: Build APK
+        run: |
+          set -o pipefail
+          VC=$(( ${{ github.run_number }} + VC_OFFSET ))
+          echo "VC=$VC" >> "$GITHUB_ENV"
+          gradle --no-daemon assembleRelease -Pvc=$VC 2>&1 | tee build-output.txt
+          cp app/build/outputs/apk/release/app-release.apk IconPatrol.apk
+      - name: Publish release (old APK moves to past-versions/)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prev=$(gh release view latest --json name -q .name 2>/dev/null | sed 's/^Icon Patrol //' || true)
+          if [ -n "$prev" ]; then
+            mkdir -p past-versions
+            gh release download latest -p IconPatrol.apk -O "past-versions/IconPatrol-$prev.apk" --clobber
+          fi
+          gh release delete build-failed --cleanup-tag -y || true
+          gh release delete latest --cleanup-tag -y || true
+          gh release create latest IconPatrol.apk --latest \
+            --title "Icon Patrol 1.0.$VC" \
+            --notes "Icon Patrol for Android, built from ${{ github.sha }}. On your phone: download IconPatrol.apk and open it, or use the in-game ⬆ update button. Changes: CHANGELOG.md"
+          if [ -n "$prev" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+            git add past-versions
+            if ! git diff --cached --quiet; then
+              git commit -m "Archive version $prev in past-versions"
+              git pull --rebase origin main && git push origin HEAD:main
+            fi
+          fi
+      - name: Report failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tail -c 60000 build-output.txt > build-output-tail.txt 2>/dev/null || echo "no build output" > build-output-tail.txt
+          gh release delete build-failed --cleanup-tag -y || true
+          gh release create build-failed build-output-tail.txt --prerelease \
+            --title "Icon Patrol build FAILED (run ${{ github.run_number }})" --notes "See the attached build output."

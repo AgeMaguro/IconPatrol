@@ -1,0 +1,33 @@
+plugins { id 'com.android.application' }
+
+android {
+    namespace 'com.agemaguro.iconpatrol'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.agemaguro.iconpatrol'
+        minSdk 26
+        targetSdk 34
+        versionCode((project.findProperty('vc') ?: '1').toInteger())
+        versionName "1.0." + (project.findProperty('vc') ?: '1')
+    }
+    signingConfigs {
+        // Icon Patrol's own key (public password "android", committed on purpose) so every build updates the last one.
+        shared {
+            storeFile rootProject.file('iconpatrol.keystore')
+            storePassword 'android'
+            keyAlias 'iconpatrol'
+            keyPassword 'android'
+        }
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.shared
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
