@@ -433,7 +433,7 @@ const G = { state:'title', sectors:[], cur:null, score:0, lives:3, cleared:0, pa
 const SHIPS = [
   {id:'patrol',  name:'Patrol',  tag:'Balanced all-rounder',      desc:'The standard patrol craft. Even speed, handling, firepower and shields: good at everything, best at nothing.', speed:1,    turn:1,    fire:1,    shield:1,    barrels:0, color:'#77ffff', fill:'#063445'},
   {id:'racer',   name:'Racer',   tag:'Very fast and nimble, fragile', desc:"A stripped-down needle. Much faster, with quick, tight handling, but thin shields and light guns. Dodge, don't tank.", speed:1.38, turn:1.35, fire:0.7,  shield:0.6,  barrels:0, color:'#fbbf24', fill:'#3a2a05'},
-  {id:'fighter', name:'Fighter', tag:'Hits hard, moves quick',     desc:'Swept wings with wingtip cannons. Faster fire and above-average speed, paid for with a weaker shield.', speed:1.15, turn:1.12, fire:1.35, shield:0.75, barrels:0, color:'#f472b6', fill:'#3a0a28'},
+  {id:'fighter', name:'Fighter', tag:'Hits hard, moves quick',     desc:'Swept wings with wingtip cannons that fire together in one volley at half the usual rate. Hits harder and moves quicker, paid for with a weaker shield.', speed:1.15, turn:1.12, fire:1.35, shield:0.75, barrels:0, volley:true, color:'#f472b6', fill:'#3a0a28'},
   {id:'bulwark', name:'Bulwark', tag:'Heavy shields, slow',        desc:'A flying fortress. A huge shield that also recharges faster, and a short-range scatter gun alongside its main gun, but slow and heavy to turn.', speed:0.78, turn:0.78, fire:1,    shield:1.65, barrels:0, wide:true, color:'#4ade80', fill:'#06301a'},
   {id:'gunship', name:'Gunship', tag:'Maximum firepower, slow',    desc:'Four forward barrels on a reinforced hull. Starts with twin shots and the fastest fire rate, but takes its time getting anywhere.', speed:0.84, turn:0.82, fire:1.6,  shield:1.1,  barrels:1, color:'#fb923c', fill:'#3a1a05'},
 ];
@@ -624,6 +624,7 @@ function renderHangar(){
   $('shipName').textContent = sd.name; $('shipName').style.color = sd.color; $('shipTag').textContent = sd.tag; $('shipDesc').textContent = sd.desc;
   $('shipStats').innerHTML = STAT_ROWS.map(([lab, k]) => `<div class="statrow"><span>${lab}</span><div class="statbar"><i style="width:${Math.min(100, sd[k]/1.7*100)}%;background:${sd[k] > 1.05 ? '#4ade80' : sd[k] < 0.95 ? '#f87171' : '#5ff'}"></i></div><span class="v">${Math.round(sd[k]*100)}%</span></div>`).join('')
     + (sd.barrels ? '<div class="statrow"><span>Bonus</span><span style="grid-column:2/4;color:#fde68a">Starts with twin shots (Multi-Barrel level 1)</span></div>' : '')
+    + (sd.volley ? '<div class="statrow"><span>Guns</span><span style="grid-column:2/4;color:#fde68a">Twin wingtip volley, half fire rate</span></div>' : '')
     + (sd.wide ? '<div class="statrow"><span>Bonus</span><span style="grid-column:2/4;color:#fde68a">Built-in scatter shot (never runs out; 75% damage, 75% range)</span></div>' : '');
 }
 function launchRun(){ shipId = hangarSel; lsSet('iconpatrol.ship', shipId); const sec = pendingSectors; pendingSectors = null; startRun(sec); }
@@ -1308,10 +1309,12 @@ function update(dt){
     P.shield = Math.min(S.maxShield, P.shield + S.regen*dt);
     const autoOn = TC.used && TC.auto; if (autoOn) aimDir(P.pos, fwd);
     if ((keys.fire || pad.fire || mouse.fire || TC.fire || (autoOn && aimHit)) && P.cool <= 0){
-      P.cool = S.cool * (P.pw.rapid > 0 ? 0.5 : 1);
+      P.cool = S.cool * (P.pw.rapid > 0 ? 0.5 : 1) * (shipDef().volley ? 2 : 1);
       // guns are fixed to the ship: straight out of the nose (touch keeps a light assist for auto-fire)
       const base = TC.used ? aimDir(P.pos, fwd) : (aimDir(P.pos, fwd), fwd.clone());
-      const shots = S.barrel === 0 ? [[0,0,0]] : S.barrel === 1 ? [[0,0,-1.8],[0,0,1.8]] : [[0.05,0,-1.8],[-0.05,0,1.8],[0,0.05,0],[0,-0.05,0]];
+      let shots = S.barrel === 0 ? [[0,0,0]] : S.barrel === 1 ? [[0,0,-1.8],[0,0,1.8]] : [[0.05,0,-1.8],[-0.05,0,1.8],[0,0.05,0],[0,-0.05,0]];
+      // Fighter: every barrel fires from both wingtip cannons at once (one volley)
+      if (shipDef().volley) shots = shots.flatMap(([dy, dp, off]) => [[dy, dp, -5.1 + off*0.4], [dy, dp, 5.1 + off*0.4]]);
       // wide shot (pickup, or built into the Fighter): 3-5 pellets scattered at random around the nose each volley
       // Bulwark's built-in scatter is weaker (75% damage, 75% range); a W pickup is full strength
       if (P.pw.spread > 0 || shipDef().wide){

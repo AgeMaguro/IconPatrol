@@ -11,6 +11,9 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.16 - 2026-11-03
+- Fighter: both wingtip cannons fire together in one volley (no more alternating), at half the fire rate. Multi-Barrel upgrades fire their full pattern from each wing.
+
 ## 1.0.15 - 2026-11-03
 - The built-in scatter moves from the Fighter to the Bulwark, and the Bulwark's version is weaker: each pellet does 75% damage and flies 75% as far (2D 0.68s vs 0.9s; 3D 1.05s vs 1.4s). The Fighter is back to plain guns.
 - A W pickup's scatter stays full strength, on any ship (the Bulwark's pellets are full strength while a W pickup is active).
