@@ -11,6 +11,10 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.14 - 2026-11-03
+- Fighter: built-in wide shot (always on, no timer), shown as a Bonus line in the hangar.
+- Wide shot is now a random scatter instead of a fixed pattern, for the pickup too. 2D: two side pellets at random angles (about 6-24 degrees) plus a 35% chance of a third anywhere in the cone, each at a slightly random speed. 3D: 3-5 pellets at random spots in a cone around the nose (about 3-10 degrees off).
+
 ## 1.0.13 - 2026-11-03
 - Updater fix: the in-app update was being cancelled before Android's "Update this app?" screen could appear (the confirm screen was opened in a new task). It now opens inside the app's own task.
 - Update errors now say why (blocked by Play Protect, signing conflict, storage, etc. plus Android's code), the button becomes "Try again", and there's a "download it in the browser instead" link as a fallback.
