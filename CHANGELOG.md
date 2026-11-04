@@ -11,6 +11,9 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.24 - 2026-11-03
+- Ship hangar fits on a phone screen without scrolling (both modes). Launch/Back moved under the ship list; on short screens the preview sits beside the ship name and the stat rows are tighter. Tested at 740x340 to 900x415 landscape and 1280x720 with every ship.
+
 ## 1.0.23 - 2026-11-03
 - 3D ship resources. Each ship has its own loadout (shown in the hangar):
 

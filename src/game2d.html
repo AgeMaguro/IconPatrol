@@ -44,13 +44,17 @@
   .shipCard small{color:#8ab}
   .shipCard.sel{border-color:#5ff;background:#0c2a44;box-shadow:0 0 14px #0ff5}
   #shipPrev{display:block;width:100%;max-width:440px;aspect-ratio:36/20;background:radial-gradient(#0c2240,#040814 70%);border:1px solid #2af3;border-radius:8px}
+  #hangar .btns{margin:14px 0 0} #hangar .btns button{flex:1;white-space:nowrap}
   @media (max-height:520px){
-    #hangar .panel{padding:12px 18px;max-height:96vh} #hangar h2{margin:0 0 8px;font-size:18px}
-    .hangar{grid-template-columns:200px 1fr;gap:12px} .shipList{gap:4px}
+    #hangar .panel{padding:10px 16px;max-height:100vh;max-height:100dvh;overflow:hidden} #hangar h2{margin:0 0 6px;font-size:17px}
+    .hangar{grid-template-columns:190px 1fr;gap:14px} .shipList{gap:4px}
     .shipCard{padding:2px 8px} .shipCard canvas{width:46px;height:26px} .shipCard b{font-size:13px} .shipCard small{display:none}
-    #shipPrev{max-width:250px} #shipName{margin:4px 0 0;font-size:18px} #shipDesc{display:none} .statrow{margin:3px 0}
-    #hangar .btns{margin-top:8px}
+    .shipHead{display:grid;grid-template-columns:minmax(0,190px) 1fr;column-gap:14px;align-items:center;margin-bottom:2px}
+    #shipPrev{grid-row:1/3;max-width:190px} #shipName{margin:0;font-size:20px;align-self:end} .tagl{margin:2px 0 0;align-self:start} #shipDesc{display:none}
+    .statrow{margin:2px 0;font-size:11.5px} .statbar{height:8px}
+    #hangar .btns{margin-top:8px;gap:8px} #hangar .btns button{padding:9px 10px;font-size:14px}
   }
+  @media (max-height:380px){ #shipPrev{max-width:150px} .shipHead{grid-template-columns:minmax(0,150px) 1fr} .statrow{margin:1px 0} }
   #shipName{margin:8px 0 0;font-size:24px;letter-spacing:2px}
   .tagl{margin:0 0 6px;color:#9cd;font-size:13px}
   .statrow{display:grid;grid-template-columns:84px 1fr 48px;align-items:center;gap:8px;font-size:12px;color:#9bc;margin:5px 0}
@@ -197,16 +201,20 @@
   <div class="panel wide">
     <h2>CHOOSE YOUR SHIP</h2>
     <div class="hangar">
-      <div class="shipList" id="shipList"></div>
+      <div class="hangarLeft">
+        <div class="shipList" id="shipList"></div>
+        <div class="btns"><button id="launchBtn">🚀 Launch</button><button class="alt" id="hangarBack">Back</button></div>
+      </div>
       <div>
-        <canvas id="shipPrev" width="440" height="244"></canvas>
-        <h3 id="shipName"></h3>
-        <p class="tagl" id="shipTag"></p>
-        <p class="sub" style="margin:0 0 8px" id="shipDesc"></p>
+        <div class="shipHead">
+          <canvas id="shipPrev" width="440" height="244"></canvas>
+          <h3 id="shipName"></h3>
+          <p class="tagl" id="shipTag"></p>
+          <p class="sub" style="margin:0 0 8px" id="shipDesc"></p>
+        </div>
         <div id="shipStats"></div>
       </div>
     </div>
-    <div class="btns"><button id="launchBtn">🚀 Launch</button><button class="alt" id="hangarBack">Back</button></div>
   </div>
 </div>
 
