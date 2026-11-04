@@ -2389,7 +2389,7 @@ function buildFromPicked(list){
 })();
 
 // ---------- throttle lever ----------
-let throttle = 0, effThr = 0; const REDLINE = 1.7, LEVER_100 = 0.76;
+let throttle = 0, effThr = 0; const REDLINE = 1.7, LEVER_100 = 0.76; const IMPULSE = 0.05;   // thrust left when the fuel tank is empty
 const leverVal = f => f <= LEVER_100 ? f/LEVER_100 : 1 + (f-LEVER_100)/(1-LEVER_100)*(REDLINE-1);
 const leverFrac = v => v <= 1 ? v*LEVER_100 : LEVER_100 + (v-1)/(REDLINE-1)*(1-LEVER_100);
 (function(){
@@ -2788,10 +2788,12 @@ function update(dt){
     const holdBoost = !!(keys.boost || pad.boost);
     let want = holdBoost ? REDLINE : throttle;
     if (want > 1 && P.boost <= 0) want = 1;                    // redline needs boost
-    if (P.fuel <= 0 && !INF()){ want = 0; if (!P.warned.fuel){ P.warned.fuel = true; toast('FUEL EMPTY · engine off, drifting. Grab a fuel cell.'); } } else P.warned.fuel = false;
+    // out of fuel: main engine off, impulse thrusters still push at up to IMPULSE (5%) of normal thrust, no boost
+    P.impulse = P.fuel <= 0 && !INF();
+    if (P.impulse){ want = Math.min(1, want)*IMPULSE; if (!P.warned.fuel){ P.warned.fuel = true; toast('FUEL EMPTY · impulse thrusters only (5% thrust). Grab a fuel cell.'); } } else P.warned.fuel = false;
     effThr = want;
     P.boosting = want > 1.02;
-    P.thrust = want > 0.03;
+    P.thrust = want > (P.impulse ? 0.005 : 0.03);
     // engine spool: thrust ramps toward the requested level instead of switching instantly
     P.spool += Math.sign(want - P.spool) * Math.min(Math.abs(want - P.spool), (want > P.spool ? 2.6 : 3.2)*dt);
     if (P.spool > 0.005) P.vel.addScaledVector(fwd, S.top*0.7*P.spool*dt);   // steady speed ≈ throttle × top speed
@@ -2874,7 +2876,7 @@ function update(dt){
     ship.quaternion.copy(P.q).multiply(_q.setFromAxisAngle(_zAx, P.visBank));
   }
   flame.scale.setScalar(2.5 + P.spool*(P.boosting ? 4.6 : 3.2) + (P.spool > 0.1 ? Math.random()*1.5*P.spool : 0));
-  flame.material.color.set(P.boosting ? 0xccffff : 0xffaa33);
+  flame.material.color.set(P.boosting ? 0xccffff : P.impulse ? 0x66aaff : 0xffaa33);
   fwShell.visible = P.alive && P.pw.firewall > 0 && (P.pw.firewall > 1.5 || Math.floor(performance.now()/90)%2);
   fwShell.rotation.y += dt*2; fwShell.rotation.x += dt;
   ship.visible = !fpv && P.alive && !(P.inv > 0 && Math.floor(performance.now()/80)%2);
@@ -3172,7 +3174,7 @@ function drawCockpitPanels(t){
     }
   };
   const hl = Math.max(0, P.hull)/S.maxHull, fu = P.fuel/S.maxFuel, inf = INF();
-  const warn = hl < 0.3 ? '⚠ HULL CRITICAL' : (!inf && P.fuel <= 0) ? '⚠ FUEL EMPTY' : (!inf && P.ammo <= 0) ? '⚠ AMMO EMPTY' : sh < 0.25 ? '⚠ SHIELD LOW' : '';
+  const warn = hl < 0.3 ? '⚠ HULL CRITICAL' : (!inf && P.fuel <= 0) ? '⚠ FUEL EMPTY · IMPULSE' : (!inf && P.ammo <= 0) ? '⚠ AMMO EMPTY' : sh < 0.25 ? '⚠ SHIELD LOW' : '';
   const status = warn ? (Math.floor(t*4)%2 ? warn : '') : pwList || (inf ? '∞ INFINITE RESOURCES' : 'ALL SYSTEMS NOMINAL');
   panel(nx - nr - 18 - pw, 'SYSTEMS', [
     bar2('SHD', sh, P.pw.firewall > 0 ? '#c084fc' : sh > 0.5 ? '#5ff' : sh > 0.25 ? '#fc4' : '#f45', 'HUL', hl, hl > 0.5 ? '#a3e635' : hl > 0.3 ? '#fc4' : '#f45'),
@@ -3461,7 +3463,7 @@ function drawHUD(t){
   hx.fillText(inf ? 'AMMO ∞   MSL ∞' : `AMMO ${P.ammo}   MSL ${P.msl}`, 16, 90);
   hx.fillStyle = '#9ff';
   hx.fillText('LIVES ' + '▲'.repeat(Math.max(0, Math.min(9, G.lives))) + '   ◆ ' + G.bits, 16, 108);
-  const warn = hl < 0.3 ? '⚠ HULL CRITICAL' : (!inf && P.fuel <= 0) ? '⚠ FUEL EMPTY · DRIFTING' : (!inf && P.ammo <= 0) ? '⚠ AMMO EMPTY · BACKUP GUN' : '';
+  const warn = hl < 0.3 ? '⚠ HULL CRITICAL' : (!inf && P.fuel <= 0) ? '⚠ FUEL EMPTY · IMPULSE ONLY' : (!inf && P.ammo <= 0) ? '⚠ AMMO EMPTY · BACKUP GUN' : '';
   if (warn && Math.floor(t*4)%2){ hx.fillStyle = '#f67'; hx.fillText(warn, 16, 144); }
   let px = 16;
   for (const [k, lab] of [['spread','WIDE'],['rapid','RAPID'],['firewall','FIREWALL']]){

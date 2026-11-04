@@ -11,6 +11,9 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.26 - 2026-11-04
+- 3D: running out of fuel no longer strands you. The main engine cuts out and impulse thrusters take over at up to 5% of normal thrust (throttle still scales it; about 5% of top speed). No boost and no boost recharge until you grab a fuel cell. The engine glow turns blue, and the warnings read "FUEL EMPTY · IMPULSE".
+
 ## 1.0.25 - 2026-11-03
 - 3D lock-on: the red LOCK reticle now snaps onto the gold lead point (where to aim) instead of the enemy's body. Light pink corner brackets and the name/distance label mark the enemy itself.
 - Lock and aim assist count the lead point as on target, so the lock no longer drops while you aim ahead of a fast crossing ship.
