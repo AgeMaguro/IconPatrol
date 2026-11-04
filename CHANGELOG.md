@@ -11,6 +11,28 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.23 - 2026-11-03
+- 3D ship resources. Each ship has its own loadout (shown in the hangar):
+
+  | Ship | Hull | Ammo | Fuel | Missiles |
+  |---|---|---|---|---|
+  | Patrol | 60 | 200 | 100 | 4 |
+  | Racer | 40 | 120 | 70 | 3 |
+  | Fighter | 50 | 160 | 90 | 5 |
+  | Bulwark | 100 | 180 | 150 | 4 |
+  | Gunship | 75 | 260 | 120 | 6 |
+
+  - Hull: shields soak damage first, and what gets through hits the hull, which doesn't regenerate. Death is now at 0 hull.
+  - Ammo: 1 per bullet (a Fighter volley costs 2; the Bulwark's built-in scatter pellets are free; W-pickup pellets cost ammo). When empty, a free backup gun fires single shots at 1/3 rate.
+  - Fuel: thrust burns it in proportion to throttle (1.6/s at 100%). At 0 the engine cuts out and you drift. Boost only recharges by drawing from fuel.
+  - Missiles: their own seeker with a much wider cone (~43°) than the guns. The orange diamond shrinks while it locks (0.7s), then shows MSL LOCK. Fire with R / right-click / controller X / touch MSL. Homing, 4 damage (6 on the Inner Demon) plus splash; unlocked shots fly straight.
+  - Drops: destroyed viruses (40%), cleansed icons (45%) and practice targets (50%) drop AMMO, FUEL CELL, HULL REPAIR or MISSILES +2, weighted toward what you're lowest on. The Bit Magnet pulls them in.
+  - Resources carry over between sectors. Clearing a sector resupplies 25% ammo and fuel plus 1 missile. A new life refills hull and tops ammo/fuel/missiles up to at least 60%.
+  - Upgrades follow their intent: Engine burns less fuel, Shield Capacity toughens the hull, Auto-Repair patches 10/20/30 hull at each sector start, Blaster Coils add ammo, Boost Tank adds fuel, and Radar extends missile lock range (600/750/900) and adds +1 missile.
+  - Free flight uses resources by default; the pause menu has "∞ Infinite resources" (it refills you when turned on).
+  - Controller: X is now missile (fire is A).
+- 3D touch auto-fire aims at the lead point with per-ship accuracy: Fighter 78%, Gunship 68%, Patrol 60%, Bulwark 52%, Racer 40% (plus a little scatter). Shown in the hangar as Auto-aim.
+
 ## 1.0.22 - 2026-11-03
 - 3D first person: the cockpit HUD tilt is reversed, so it now leans into the turn (turn left, the left side dips). The sideways sway is unchanged.
 

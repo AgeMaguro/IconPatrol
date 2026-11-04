@@ -113,7 +113,9 @@
   @media (max-height:420px){ .tt{padding:4px 8px;font-size:10px} .ttop{top:4px;gap:5px} #stickHint{display:none} }
   .tb.down{background:rgba(90,255,255,.45);color:#fff}
   .ttop{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;gap:8px;pointer-events:auto;z-index:4}
-  .tlever{grid-column:3;grid-row:1 / span 2;align-self:stretch;width:clamp(46px,15vh,66px);min-height:clamp(100px,55vh,200px);border-radius:12px;position:relative;border:2px solid #5ff8;background:rgba(0,200,255,.07);touch-action:none;overflow:hidden;-webkit-tap-highlight-color:transparent}
+  .tpad.three{grid-template-columns:repeat(4,auto)}
+  .tb.msl{grid-column:1;grid-row:1 / span 2;align-self:center;background:rgba(249,115,22,.14);border-color:#f97316aa;color:#fed7aa;font-size:clamp(9px,3.4vh,12px)}
+  .tlever{grid-column:4;grid-row:1 / span 2;align-self:stretch;width:clamp(46px,15vh,66px);min-height:clamp(100px,55vh,200px);border-radius:12px;position:relative;border:2px solid #5ff8;background:rgba(0,200,255,.07);touch-action:none;overflow:hidden;-webkit-tap-highlight-color:transparent}
   .tlever.down{border-color:#bff}
   .tlRed{position:absolute;left:0;right:0;top:0;height:24%;background:repeating-linear-gradient(45deg,rgba(255,60,80,.22) 0 6px,rgba(255,60,80,.06) 6px 12px)}
   .tlRed i{position:absolute;left:0;right:0;top:3px;text-align:center;font-style:normal;font-size:clamp(7px,2.2vh,9px);color:#f9a;letter-spacing:1px}
@@ -143,7 +145,7 @@
   <div id="stickHint">Drag here to<br>pitch &amp; turn.</div>
   <div id="stickBase"><div id="stickKnob"></div></div>
   <div class="tpad three">
-    <div class="tb sm" data-k="rollL">⟲</div><div class="tb big fire" data-k="fire">FIRE</div>
+    <div class="tb sm msl" data-k="msl">MSL</div><div class="tb sm" data-k="rollL">⟲</div><div class="tb big fire" data-k="fire">FIRE</div>
     <div class="tlever" id="tThr"><div class="tlRed"><i>REDLINE</i></div><div class="tlFill"></div><div class="tl100"></div><div class="tlKnob"></div><div class="tlLab">0%</div></div>
     <div class="tb sm" data-k="rollR">⟳</div><div class="tb" data-k="brake">BRAKE</div>
   </div>
@@ -175,6 +177,7 @@
         <b>W / S</b><span>throttle up / down (S at 0% brakes)</span>
         <b>X · wheel</b><span>cut throttle · fine-tune throttle</span>
         <b>Space</b><span>fire</span>
+        <b>R · right-click</b><span>missile (holds a lock on targets in a wide cone)</span>
         <b>Shift (hold)</b><span>redline boost (ram viruses!)</span>
         <b>Click game</b><span>steer with mouse, left-click fires</span>
         <b>V</b><span>switch first-person / chase view</span>
@@ -188,7 +191,8 @@
         <b>Left stick / D-pad</b><span>pitch and yaw</span>
         <b>Right stick / LB RB</b><span>roll</span>
         <b>RT / LT</b><span>throttle up / down (LT at 0% brakes)</span>
-        <b>A / X</b><span>fire</span>
+        <b>A</b><span>fire</span>
+        <b>X</b><span>missile</span>
         <b>Y</b><span>switch view</span>
         <b>R3 (click right stick)</b><span>HUD detail: full / clean / minimal</span>
         <b>B (hold)</b><span>redline boost</span>
@@ -252,6 +256,7 @@
       <button id="pResume">▶ Resume</button>
       <button class="alt" id="pSettings">⚙ Settings</button>
       <button class="alt" id="pMap">Leave sector (drive map)</button>
+      <button class="alt" id="pInf" style="display:none">∞ Infinite resources: OFF</button>
       <button class="alt" id="pQuit">Quit to title</button>
     </div>
   </div>
@@ -439,11 +444,11 @@ function buildFromFiles(list){
 const G = { state:'title', sectors:[], cur:null, score:0, lives:3, cleared:0, paused:false, bits:0, up:{} };
 // ---------- ship types ----------
 const SHIPS = [
-  {id:'patrol',  name:'Patrol',  tag:'Balanced all-rounder',      desc:'The standard patrol craft. Even speed, handling, firepower and shields: good at everything, best at nothing.', speed:1,    turn:1,    fire:1,    shield:1,    barrels:0, color:'#77ffff', fill:'#063445'},
-  {id:'racer',   name:'Racer',   tag:'Very fast and nimble, fragile', desc:"A stripped-down needle. Much faster, with quick, tight handling, but thin shields and light guns. Dodge, don't tank.", speed:1.38, turn:1.35, fire:0.7,  shield:0.6,  barrels:0, color:'#fbbf24', fill:'#3a2a05'},
-  {id:'fighter', name:'Fighter', tag:'Hits hard, moves quick',     desc:'Swept wings with wingtip cannons that fire together in one volley at half the usual rate. Hits harder and moves quicker, paid for with a weaker shield.', speed:1.15, turn:1.12, fire:1.35, shield:0.75, barrels:0, volley:true, color:'#f472b6', fill:'#3a0a28'},
-  {id:'bulwark', name:'Bulwark', tag:'Heavy shields, slow',        desc:'A flying fortress. A huge shield that also recharges faster, and a short-range scatter gun alongside its main gun, but slow and heavy to turn.', speed:0.78, turn:0.78, fire:1,    shield:1.65, barrels:0, wide:true, color:'#4ade80', fill:'#06301a'},
-  {id:'gunship', name:'Gunship', tag:'Maximum firepower, slow',    desc:'Four forward barrels on a reinforced hull. Starts with twin shots and the fastest fire rate, but takes its time getting anywhere.', speed:0.84, turn:0.82, fire:1.6,  shield:1.1,  barrels:1, color:'#fb923c', fill:'#3a1a05'},
+  {id:'patrol', hull:60, ammo:200, fuel:100, msl:4, aim:0.6,  name:'Patrol',  tag:'Balanced all-rounder',      desc:'The standard patrol craft. Even speed, handling, firepower and shields: good at everything, best at nothing.', speed:1,    turn:1,    fire:1,    shield:1,    barrels:0, color:'#77ffff', fill:'#063445'},
+  {id:'racer', hull:40, ammo:120, fuel:70, msl:3, aim:0.4,   name:'Racer',   tag:'Very fast and nimble, fragile', desc:"A stripped-down needle. Much faster, with quick, tight handling, but thin shields and light guns. Dodge, don't tank.", speed:1.38, turn:1.35, fire:0.7,  shield:0.6,  barrels:0, color:'#fbbf24', fill:'#3a2a05'},
+  {id:'fighter', hull:50, ammo:160, fuel:90, msl:5, aim:0.78, name:'Fighter', tag:'Hits hard, moves quick',     desc:'Swept wings with wingtip cannons that fire together in one volley at half the usual rate. Hits harder and moves quicker, paid for with a weaker shield.', speed:1.15, turn:1.12, fire:1.35, shield:0.75, barrels:0, volley:true, color:'#f472b6', fill:'#3a0a28'},
+  {id:'bulwark', hull:100, ammo:180, fuel:150, msl:4, aim:0.52, name:'Bulwark', tag:'Heavy shields, slow',        desc:'A flying fortress. A huge shield that also recharges faster, and a short-range scatter gun alongside its main gun, but slow and heavy to turn.', speed:0.78, turn:0.78, fire:1,    shield:1.65, barrels:0, wide:true, color:'#4ade80', fill:'#06301a'},
+  {id:'gunship', hull:75, ammo:260, fuel:120, msl:6, aim:0.68, name:'Gunship', tag:'Maximum firepower, slow',    desc:'Four forward barrels on a reinforced hull. Starts with twin shots and the fastest fire rate, but takes its time getting anywhere.', speed:0.84, turn:0.82, fire:1.6,  shield:1.1,  barrels:1, color:'#fb923c', fill:'#3a1a05'},
 ];
 let shipId = SHIPS.some(x => x.id === lsGet('iconpatrol.ship')) ? lsGet('iconpatrol.ship') : 'patrol';
 const shipDef = () => SHIPS.find(x => x.id === (G.ship || shipId)) || SHIPS[0];
@@ -468,14 +473,14 @@ function drawShipShape(g, id, x, y, a, scale, color, fill, alpha=1){
 }
 
 const UPGRADES = [
-  {k:'engine',  name:'Engine',          desc:'Stronger thrust and higher top speed.', costs:[15,30,45]},
-  {k:'shield',  name:'Shield Capacity', desc:'Max shield 100 → 130 → 160 → 200.',     costs:[15,30,45]},
-  {k:'regen',   name:'Auto-Repair',     desc:'Shield regenerates faster.',            costs:[12,25,40]},
-  {k:'blaster', name:'Blaster Coils',   desc:'Faster fire rate.',                     costs:[20,35,50]},
+  {k:'engine',  name:'Engine',          desc:'Stronger thrust, higher top speed, burns less fuel.', costs:[15,30,45]},
+  {k:'shield',  name:'Shield Capacity', desc:'Max shield 100 → 130 → 160 → 200, and a tougher hull.',     costs:[15,30,45]},
+  {k:'regen',   name:'Auto-Repair',     desc:'Shield regenerates faster; patches up some hull at the start of each sector.',            costs:[12,25,40]},
+  {k:'blaster', name:'Blaster Coils',   desc:'Faster fire rate and more ammo.',                     costs:[20,35,50]},
   {k:'barrel',  name:'Multi-Barrel',    desc:'Twin shot, then quad spread.',          costs:[40,70]},
-  {k:'tank',    name:'Boost Tank',      desc:'Bigger boost meter that refills faster.', costs:[12,24,36]},
+  {k:'tank',    name:'Boost Tank',      desc:'Bigger boost meter that refills faster, and a bigger fuel tank.', costs:[12,24,36]},
   {k:'magnet',  name:'Bit Magnet',      desc:'Pull range 60 → 130 → 200 → 280 for bits, pickups and clean icons.', costs:[10,20,30]},
-  {k:'radar',   name:'Radar Range',     desc:'Navball sees farther and shows pickups.', costs:[10,25]},
+  {k:'radar',   name:'Radar Range',     desc:'Navball sees farther and shows pickups; missiles lock from farther out, +1 missile.', costs:[10,25]},
 ];
 function freshUpgrades(){ const u = {}; UPGRADES.forEach(x => u[x.k] = 0); return u; }
 function stats(){
@@ -486,6 +491,10 @@ function stats(){
     cool: [0.15,0.12,0.10,0.085][u.blaster]/sd.fire, barrel: Math.min(2, u.barrel + sd.barrels),
     tank: [100,140,180,220][u.tank], tankRegen: [11,14,17,20][u.tank],
     magnet: [60,130,200,280][u.magnet], radar: [700,1000,1400][u.radar], radarPick: u.radar > 0,
+    maxHull: Math.round(sd.hull*[1,1.1,1.2,1.35][u.shield]), hullFix: [0,10,20,30][u.regen],
+    maxAmmo: Math.round(sd.ammo*[1,1.15,1.3,1.5][u.blaster]),
+    maxFuel: Math.round(sd.fuel*[1,1.15,1.3,1.5][u.tank]), burn: [1.6,1.45,1.3,1.15][u.engine],   // fuel per second at full throttle
+    maxMsl: sd.msl + u.radar, mslRange: [600,750,900][u.radar],
   };
 }
 const PICKUPS = {
@@ -495,7 +504,19 @@ const PICKUPS = {
   rapid:    {c:'#fb923c', name:'RAPID FIRE',   w:18},
   firewall: {c:'#c084fc', name:'FIREWALL',     w:10},
   life:     {c:'#f9a8d4', name:'EXTRA LIFE',   w:4},
+  // resources: only from the resource roll (w:0 keeps them out of the power-up roll)
+  ammo:     {c:'#e2e8f0', name:'AMMO',         w:0},
+  fuel:     {c:'#22d3ee', name:'FUEL CELL',    w:0},
+  hull:     {c:'#a3e635', name:'HULL REPAIR',  w:0},
+  missile:  {c:'#f97316', name:'MISSILES +2',  w:0},
 };
+// resource drops lean toward whatever you're shortest on
+function randResource(){
+  const need = k => ({ammo: 1.35 - P.ammo/S.maxAmmo, fuel: 1.35 - P.fuel/S.maxFuel, hull: 1.2 - P.hull/S.maxHull, missile: 1.2 - P.msl/Math.max(1, S.maxMsl)})[k];
+  const w = {ammo:40*need('ammo'), fuel:35*need('fuel'), hull:15*need('hull'), missile:12*need('missile')};
+  let tot = 0; for (const k in w) tot += w[k]; let r = Math.random()*tot; for (const k in w){ r -= w[k]; if (r <= 0) return k; } return 'ammo';
+}
+function dropResource(at, chance){ if (P && Math.random() < chance) spawnPickup(at, randResource(), randDir().multiplyScalar(8)); }
 function randPickup(){ let tot = 0; for (const k in PICKUPS) tot += PICKUPS[k].w; let r = Math.random()*tot; for (const k in PICKUPS){ r -= PICKUPS[k].w; if (r <= 0) return k; } return 'patch'; }
 
 // ---------- 3D helpers ----------
@@ -600,13 +621,19 @@ const fwd = V(), up = V(), right = V(), qInv = new THREE.Quaternion();
 function clearField(){
   for (const a of [bullets, icons, viruses, pickups]) for (const o of a) scene.remove(o.g);
   if (boss) scene.remove(boss.g);
-  bullets=[]; icons=[]; viruses=[]; pickups=[]; msgs=[]; timers=[]; boss=null; banner=null; plist=[];
+  for (const m of missiles) scene.remove(m.g);
+  bullets=[]; icons=[]; viruses=[]; pickups=[]; missiles=[]; msgs=[]; timers=[]; boss=null; banner=null; plist=[];
 }
 function resetField(){
   feedClear();
   clearField(); S = stats();
   P = {pos:V(0,0,R*0.35), vel:V(), q:new THREE.Quaternion(), ang:V(), shield:S.maxShield, inv:2, cool:0, alive:true, respawn:0,
        thrust:false, boost:S.tank, boostIdle:0, boosting:false, wasBoosting:false, pw:{spread:0, rapid:0, firewall:0}, rate:V(), spool:0, thrAmt:0, brkAmt:0, thrSm:0, brkSm:0};
+  // ship resources carry over between sectors (G.res); a new run or new life starts full
+  const R0 = G.res;
+  P.hull = R0 ? Math.min(S.maxHull, R0.hull + S.hullFix) : S.maxHull; P.ammo = R0 ? Math.min(S.maxAmmo, R0.ammo) : S.maxAmmo;
+  P.fuel = R0 ? Math.min(S.maxFuel, R0.fuel) : S.maxFuel; P.msl = R0 ? Math.min(S.maxMsl, R0.msl) : S.maxMsl;
+  MS.tgt = null; MS.t = 0; MS.locked = false; MS.cool = 0; MS.prev = false; P.warned = {};
   waveNo = 0; virusT = 2.5; cacheT = 12 + Math.random()*6; gateSm.coast = gateSm.ghost = null; throttle = 0; mouse.dx = mouse.dy = mouse.sx = mouse.sy = 0; effThr = 0; TGT = null; wasLocked = false; CK.x = CK.y = CK.r = 0;
   ship.position.copy(P.pos); ship.quaternion.copy(P.q); camera.position.copy(P.pos).add(V(0,4,16)); camera.quaternion.copy(P.q);
 }
@@ -632,13 +659,15 @@ function renderHangar(){
   $('shipName').textContent = sd.name; $('shipName').style.color = sd.color; $('shipTag').textContent = sd.tag; $('shipDesc').textContent = sd.desc;
   $('shipStats').innerHTML = STAT_ROWS.map(([lab, k]) => `<div class="statrow"><span>${lab}</span><div class="statbar"><i style="width:${Math.min(100, sd[k]/1.7*100)}%;background:${sd[k] > 1.05 ? '#4ade80' : sd[k] < 0.95 ? '#f87171' : '#5ff'}"></i></div><span class="v">${Math.round(sd[k]*100)}%</span></div>`).join('')
     + (sd.barrels ? '<div class="statrow"><span>Bonus</span><span style="grid-column:2/4;color:#fde68a">Starts with twin shots (Multi-Barrel level 1)</span></div>' : '')
+    + (typeof THREE !== 'undefined' ? `<div class="statrow"><span>Loadout</span><span style="grid-column:2/4;color:#cfeaff">Hull ${sd.hull} · Ammo ${sd.ammo} · Fuel ${sd.fuel} · Missiles ${sd.msl}</span></div>` : '')
+    + (typeof THREE !== 'undefined' ? `<div class="statrow"><span>Auto-aim</span><div class="statbar"><i style="width:${sd.aim*100}%;background:#ffd400"></i></div><span class="v">${Math.round(sd.aim*100)}%</span></div>` : '')
     + (sd.volley ? '<div class="statrow"><span>Guns</span><span style="grid-column:2/4;color:#fde68a">Twin wingtip volley, half fire rate</span></div>' : '')
     + (sd.wide ? '<div class="statrow"><span>Bonus</span><span style="grid-column:2/4;color:#fde68a">Built-in scatter shot (never runs out; 75% damage, 75% range)</span></div>' : '');
 }
 let pendingFree = false;
 function launchRun(){ shipId = hangarSel; lsSet('iconpatrol.ship', shipId); if (pendingFree){ pendingFree = false; startFree(); return; } const sec = pendingSectors; pendingSectors = null; startRun(sec); }
 function newRun(sectors){ showHangar(sectors); pendingFree = false; }
-function startRun(sectors){ G.ship = shipId; applyShipMesh(); G.sectors = sectors; G.score = 0; G.lives = 3; G.cleared = 0; G.bits = 0; G.up = freshUpgrades(); showMap(); }
+function startRun(sectors){ G.res = null; G.ship = shipId; applyShipMesh(); G.sectors = sectors; G.score = 0; G.lives = 3; G.cleared = 0; G.bits = 0; G.up = freshUpgrades(); showMap(); }
 
 // 3D ship models: the 2D outline extruded into a hull, plus fins / barrels / shield ring per type
 function buildShipMesh(id){
@@ -693,12 +722,15 @@ function drawHangarPreview(t){
 
 
 // ---------- free flight: no enemies, no damage, endless icons and practice drones ----------
+let freeInf = lsGet('iconpatrol3d.freeInf') === '1';
+const INF = () => !!(G.cur && G.cur.free && freeInf);
+function showInf(){ const b = $('pInf'); b.textContent = '∞ Infinite resources: ' + (freeInf ? 'ON' : 'OFF'); b.style.display = G.cur && G.cur.free ? '' : 'none'; }
 const FREE_DRONES = 6, TARGET_HP = {patrol:3, racer:2, fighter:3, bulwark:6, gunship:5};
 function startFree(){
-  G.ship = shipId; applyShipMesh(); G.sectors = []; G.score = 0; G.lives = 3; G.cleared = 0; G.bits = 0; G.up = freshUpgrades();
+  G.res = null; G.ship = shipId; applyShipMesh(); G.sectors = []; G.score = 0; G.lives = 3; G.cleared = 0; G.bits = 0; G.up = freshUpgrades();
   G.cur = {path:'FREE FLIGHT', free:true, files:[]}; resetField(); queue = [];
   hideAll(); G.state = 'play'; G.paused = false; G.startT = performance.now()/1000; relockIfWanted();
-  $('pMap').textContent = 'Leave free flight';
+  $('pMap').textContent = 'Leave free flight'; showInf();
   for (let i = 0; i < FREE_DRONES; i++) spawnDrone(true);
   setBanner('FREE FLIGHT', 2.5); toast('Free flight: no damage. Enemy ships fly around as practice targets (they don\'t shoot). Pause to leave.');
 }
@@ -714,12 +746,12 @@ function spawnDrone(ahead){
   viruses.push({g, vel:randDir().multiplyScalar(sp), hp:TARGET_HP[sd.id], dummy:true, ship:sd, sp, turn:0.5*sd.turn, wp:randInSphere(R*0.6), wpT:4 + Math.random()*5, spin:V(), label:'TARGET · ' + sd.name.toUpperCase()});
 }
 function startSector(sec){
-  $('pMap').textContent = 'Leave sector (drive map)';
+  $('pMap').textContent = 'Leave sector (drive map)'; $('pInf').style.display = 'none';
   G.cur = sec; sec._waiting = false; resetField(); queue = sec.files.slice();
   hideAll(); G.state = 'play'; G.paused = false; G.startT = performance.now()/1000; relockIfWanted(); nextWave();
 }
 function startBoss(){
-  $('pMap').textContent = 'Leave sector (drive map)';
+  $('pMap').textContent = 'Leave sector (drive map)'; $('pInf').style.display = 'none';
   G.cur = {path:"DEMON'S GATE", boss:true, files:[]}; resetField(); queue = [];
   hideAll(); G.state = 'play'; G.paused = false; G.startT = performance.now()/1000; relockIfWanted();
   const g = new THREE.Group();
@@ -782,7 +814,7 @@ function short(n){ return n.length > 18 ? n.slice(0,15) + '…' : n; }
 
 // ---------- input ----------
 const keys = {};
-const KEYMAP = {ArrowUp:'pu',ArrowDown:'pd',ArrowLeft:'yl',ArrowRight:'yr',KeyA:'rl',KeyQ:'rl',KeyD:'rr',KeyE:'rr',KeyW:'th',KeyS:'br',Space:'fire',ShiftLeft:'boost',ShiftRight:'boost'};
+const KEYMAP = {ArrowUp:'pu',ArrowDown:'pd',ArrowLeft:'yl',ArrowRight:'yr',KeyA:'rl',KeyQ:'rl',KeyD:'rr',KeyE:'rr',KeyW:'th',KeyS:'br',Space:'fire',KeyR:'msl',ShiftLeft:'boost',ShiftRight:'boost'};
 addEventListener('keydown', e => {
   if (e.code === 'Escape' && settingsOpen && G.state !== 'play'){ closeSettings(); return; }
   if (KEYMAP[e.code]){ keys[KEYMAP[e.code]] = true; if (G.state==='play') e.preventDefault(); }
@@ -800,14 +832,16 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { if (KEYMAP[e.code]) keys[KEYMAP[e.code]] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.fire = false; if (G.state==='play') G.paused = true; });
 let lockLostAt = -1e9;
-const mouse = {dx:0, dy:0, sx:0, sy:0, fire:false, locked:false, skip:0, wanted:false, selfUnlock:false};
+const mouse = {dx:0, dy:0, sx:0, sy:0, fire:false, msl:false, locked:false, skip:0, wanted:false, selfUnlock:false};
 hud.style.pointerEvents = 'none';
 glCanvas.addEventListener('mousedown', e => {
   if (G.state !== 'play' || TC.used) return;
   if (!mouse.locked){ lockMouse(); return; }
   if (e.button === 0) mouse.fire = true;
+  if (e.button === 2) mouse.msl = true;
 });
-addEventListener('mouseup', e => { if (e.button === 0) mouse.fire = false; });
+glCanvas.addEventListener('contextmenu', e => e.preventDefault());
+addEventListener('mouseup', e => { if (e.button === 0) mouse.fire = false; if (e.button === 2) mouse.msl = false; });
 document.addEventListener('pointerlockchange', () => {
   mouse.locked = document.pointerLockElement === glCanvas;
   if (mouse.locked) mouse.wanted = true;                       // remember the player likes mouse steering
@@ -870,7 +904,7 @@ function pollPad(dt){
   let yaw = -dz(ax(0)), pitch = -dz(ax(1)), roll = gp.mapping === 'standard' ? -dz(ax(2)) : 0;
   if (b(12)) pitch = 1; if (b(13)) pitch = -1; if (b(14)) yaw = 1; if (b(15)) yaw = -1;
   if (b(4)) roll = 1; if (b(5)) roll = -1;
-  pad = {pitch, yaw, roll, thrust: bv(7), brake: bv(6), fire: b(0)||b(2), boost: b(1)||b(10)};
+  pad = {pitch, yaw, roll, thrust: bv(7), brake: bv(6), fire: b(0), msl: b(2), boost: b(1)||b(10)};
   const pressed = i => b(i) && !padPrev[i];
   if (gp.buttons.some((_,i)=>b(i)) || Math.abs(ax(0))>0.5 || Math.abs(ax(1))>0.5) padUsed = true;
   if (G.state === 'play' && !G.paused && !settingsOpen){
@@ -988,6 +1022,7 @@ function buildFromPicked(list){
   });
   $('tFlight').addEventListener('pointerdown', e => { e.preventDefault(); cycleFlight(); });
   $('tView').addEventListener('pointerdown', e => { e.preventDefault(); toggleView(); });
+  document.querySelector('.tb[data-k="msl"]').addEventListener('pointerdown', () => { TC.mslTap = true; });
   $('tHud').addEventListener('pointerdown', e => { e.preventDefault(); cycleHud(); }); showHud();
   $('tPause').addEventListener('pointerdown', e => { e.preventDefault(); if (G.state === 'play') G.paused = !G.paused; });
   $('tMap').addEventListener('pointerdown', e => { e.preventDefault(); abortToMap(); });
@@ -1042,6 +1077,7 @@ const leverFrac = v => v <= 1 ? v*LEVER_100 : LEVER_100 + (v-1)/(REDLINE-1)*(1-L
 })();
 function showTitle(){ hideAll(); unlockMouse(); G.state = 'title'; showHi(); $('title').classList.add('show'); navFirst(); }
 function showMap(){
+  if (G.state === 'play' && P) G.res = {hull:Math.max(1, P.hull), ammo:P.ammo, fuel:P.fuel, msl:P.msl};   // carry resources to the next sector
   feedClear();
   hideAll(); unlockMouse(); G.state = 'map';
   $('mShip').textContent = shipDef().name; $('mShip').style.color = shipDef().color;
@@ -1129,6 +1165,7 @@ $('sBack').onclick = closeSettings;
 $('launchBtn').onclick = launchRun;
 $('hangarBack').onclick = showTitle;
 $('pResume').onclick = () => { G.paused = false; relockIfWanted(); };
+$('pInf').onclick = () => { freeInf = !freeInf; if (freeInf && P){ P.ammo = S.maxAmmo; P.fuel = S.maxFuel; P.msl = S.maxMsl; P.hull = S.maxHull; } lsSet('iconpatrol3d.freeInf', freeInf ? '1' : '0'); showInf(); toast(freeInf ? 'Infinite resources ON (free flight only)' : 'Infinite resources OFF: ammo, fuel and missiles are used up'); };
 $('pSettings').onclick = () => openSettings('pause');
 $('pMap').onclick = () => { G.paused = false; abortToMap(); };
 $('pQuit').onclick = () => { G.paused = false; timers = []; showTitle(); };
@@ -1138,8 +1175,11 @@ $('againBtn').onclick = showTitle;
 function damage(n){
   if (G.cur && G.cur.free) return;   // free flight: no damage
   if (!P.alive || P.inv > 0 || P.pw.firewall > 0) return;
-  P.shield -= n; P.inv = 0.5; SFX.hurt(); rumble(120, 0.5); hitFlash = 0.35;
-  if (P.shield <= 0){
+  // shields soak damage first; whatever gets through hits the hull, which doesn't regenerate
+  const over = Math.max(0, n - Math.max(0, P.shield));
+  P.shield = Math.max(0, P.shield - n); if (over > 0){ P.hull -= over; hitFlash = 0.6; }
+  P.inv = 0.5; SFX.hurt(); rumble(120, 0.5); hitFlash = Math.max(hitFlash, 0.35);
+  if (P.hull <= 0){
     P.alive = false; P.respawn = 2; burst(P.pos, '#5ff', 80, 60, 1.4); SFX.boom(); rumble(400, 1);
     ship.visible = false; G.lives--;
     if (G.lives < 0) later(1.8, () => showEnd(false));
@@ -1150,10 +1190,95 @@ function fireEnemy(from, dir, sp=120){
   const g = new THREE.Mesh(BG_E, BM_E); g.position.copy(from); scene.add(g);
   bullets.push({g, vel:dir.clone().normalize().multiplyScalar(sp), life:5, enemy:true});
 }
+function cleanseIcon(ic){
+  ic.infected = false; ic.hp = 3; ic.glow.material.color.set(0x4ade80); ic.glow.material.opacity = 0.35; burst(ic.g.position, '#4ade80', 26, 35); addScore(50);
+  dropAt(ic.g.position, 3, 0.25); dropResource(ic.g.position, 0.45); msg('CLEANSED +50', ic.g.position, '#4ade80'); SFX.cleanse(); ic.vel.multiplyScalar(0.2);
+}
+function killBoss(){
+  if (!boss) return;
+  burst(boss.g.position, '#f35', 400, 140, 2.2); burst(boss.g.position, '#fff', 200, 90, 1.6); SFX.boom(); setTimeout(SFX.boom,200); setTimeout(SFX.boom,450); rumble(900, 1);
+  addScore(5000); scene.remove(boss.g); boss = null;
+  viruses.forEach(v => { burst(v.g.position, '#e040fb', 12, 30); v.hp = 0; }); bullets.forEach(x => { if (x.enemy) x.life = 0; });
+  setBanner('INNER DEMON DESTROYED', 3); later(3.4, () => showEnd(true));
+}
+
+// ---------- missiles: own wide-cone targeting (lock takes ~0.7s), homing, splash damage ----------
+let missiles = [];
+const MS = {tgt:null, t:0, locked:false, cool:0, prev:false}, MSL_ANG = 0.75, MSL_LOCK_T = 0.7;
+const MG = new THREE.ConeGeometry(0.7, 3.2, 6); MG.rotateX(-Math.PI/2);
+function hostiles(){
+  const out = [];
+  for (const v of viruses) if (v.hp > 0) out.push({obj:v, pos:v.g.position, vel:v.vel, r:10});
+  for (const ic of icons) if (ic.infected && !ic.dead) out.push({obj:ic, pos:ic.g.position, vel:ic.vel, r:14});
+  if (boss) out.push({obj:boss, pos:boss.g.position, vel:boss.vel, r:38});
+  return out;
+}
+const alive = o => o === boss ? !!boss : o.hp !== undefined && (o.infected === undefined ? o.hp > 0 : (o.infected && !o.dead));
+function scanMissile(dt){
+  let best = null, bestAng = MSL_ANG;
+  for (const h of hostiles()){
+    _t.copy(h.pos).sub(P.pos); const d = _t.length(); if (d > S.mslRange || d < 8) continue;
+    const ang = _t.divideScalar(d).angleTo(fwd); if (ang < bestAng){ bestAng = ang; best = h; best.d = d; }
+  }
+  // keep the current target while it stays in the cone, so the lock can build
+  if (MS.tgt && alive(MS.tgt.obj)){ _t.copy(MS.tgt.pos).sub(P.pos); const d = _t.length(); if (d <= S.mslRange && _t.divideScalar(d || 1).angleTo(fwd) < MSL_ANG*1.1){ best = MS.tgt; best.d = d; } }
+  if (!best){ MS.tgt = null; MS.t = 0; MS.locked = false; return; }
+  if (!MS.tgt || MS.tgt.obj !== best.obj){ MS.tgt = best; MS.t = 0; MS.locked = false; }
+  MS.t += dt;
+  if (!MS.locked && MS.t >= MSL_LOCK_T){ MS.locked = true; beep(660,0.05,'square',0.03); setTimeout(()=>beep(990,0.08,'square',0.03),60); }
+}
+function fireMissile(){
+  if (!INF() && P.msl <= 0){ toast('NO MISSILES · grab missile drops'); beep(160,0.08,'square',0.03); return; }
+  if (!INF()) P.msl--;
+  const g = new THREE.Group(); g.add(new THREE.Mesh(MG, basic(0xffd8b0))); g.add(glowSprite(0xff8a3d, 10, 0.9));
+  g.position.copy(P.pos).addScaledVector(fwd, 4).addScaledVector(up, -1.6);
+  missiles.push({g, vel:P.vel.clone().addScaledVector(fwd, 110), life:5, tgt: MS.locked && MS.tgt ? MS.tgt : null});
+  scene.add(g); beep(300,0.18,'sawtooth',0.04,500); MS.cool = 0.45;
+}
+function hurt(h, dmg){
+  const o = h.obj;
+  if (o === boss){ boss.hp -= dmg; boss.flash = 0.1; addScore(10); if (boss.hp <= 0) killBoss(); }
+  else if (o.infected !== undefined){ o.hp -= dmg; o.flash = 0.1; if (o.hp <= 0) cleanseIcon(o); }
+  else { o.hp -= dmg; if (o.hp <= 0) killVirus(o); }
+}
+function explodeMissile(m, direct){
+  const at = m.g.position; burst(at, '#fb923c', 40, 55, 0.7); burst(at, '#fff3c4', 14, 30, 0.4); SFX.boom(); rumble(80, 0.3);
+  if (direct) hurt(direct, direct.obj === boss ? 6 : 4);
+  for (const h of hostiles()) if (h.obj !== (direct && direct.obj) && h.pos.distanceTo(at) < 22 + h.r*0.5) hurt(h, 2);   // splash
+  m.life = 0;
+}
+function updateMissiles(dt){
+  MS.cool -= dt;
+  const want = !!(keys.msl || mouse.msl || pad.msl || TC.msl || TC.mslTap); TC.mslTap = false;
+  if (want && !MS.prev && P.alive && MS.cool <= 0) fireMissile();
+  MS.prev = want;
+  for (const m of missiles){
+    if (m.life <= 0) continue;
+    m.life -= dt;
+    const sp = Math.min(330, m.vel.length() + 260*dt);
+    if (m.tgt && alive(m.tgt.obj)){
+      const tt = m.g.position.distanceTo(m.tgt.pos)/Math.max(sp, 1);
+      _t.copy(m.tgt.pos).addScaledVector(m.tgt.vel || V(), tt*0.8).sub(m.g.position).normalize();
+      _t2.copy(m.vel).normalize();
+      const ang = _t2.angleTo(_t), maxTurn = 2.6*dt;
+      if (ang > 1e-4) _t2.lerp(_t, Math.min(1, maxTurn/ang)).normalize();
+      m.vel.copy(_t2).multiplyScalar(sp);
+    } else m.vel.setLength(sp);
+    m.g.position.addScaledVector(m.vel, dt);
+    m.g.lookAt(_t.copy(m.g.position).sub(m.vel));
+    if (Math.random() < 0.8) trail(_t.copy(m.g.position), _t2.copy(m.vel).multiplyScalar(-0.15).add(randDir().multiplyScalar(5)), Math.random() < 0.5 ? '#fb923c' : '#fde68a', 0.35);
+    let hit = null;
+    for (const h of hostiles()){ if (m.g.position.distanceToSquared(h.pos) < (h.r + 2)*(h.r + 2)){ hit = h; break; } }
+    if (hit) explodeMissile(m, hit);
+    else if (m.life <= 0 || m.g.position.lengthSq() > (R+60)*(R+60)) explodeMissile(m, null);
+  }
+  missiles = missiles.filter(m => { if (m.life <= 0){ scene.remove(m.g); return false; } return true; });
+}
 function killVirus(v, rammed){
   burst(v.g.position, '#e040fb', 22, 40); addScore(25);
   msg(rammed ? 'RAMMED +25' : '+25', v.g.position, '#e9f'); SFX.boom();
   dropAt(v.g.position, 1 + (Math.random() < 0.4 ? 1 : 0), 0.12);
+  dropResource(v.g.position, v.dummy ? 0.5 : 0.4);
 }
 let bitTick = 0;
 function collect(k){
@@ -1165,6 +1290,10 @@ function collect(k){
     case 'rapid': P.pw.rapid = 10; break;
     case 'firewall': P.pw.firewall = 6; break;
     case 'life': G.lives++; break;
+    case 'ammo': P.ammo = Math.min(S.maxAmmo, P.ammo + Math.ceil(S.maxAmmo*0.35)); break;
+    case 'fuel': P.fuel = Math.min(S.maxFuel, P.fuel + S.maxFuel*0.35); break;
+    case 'hull': P.hull = Math.min(S.maxHull, P.hull + Math.ceil(S.maxHull*0.25)); break;
+    case 'missile': P.msl = Math.min(S.maxMsl, P.msl + 2); break;
   }
   msg(PICKUPS[k.type].name, null, PICKUPS[k.type].c);
   [523,784,1046].forEach((f,i)=>setTimeout(()=>beep(f,0.08,'triangle',0.05),i*55));
@@ -1232,7 +1361,7 @@ function drawGates(gates, isGhost, fade, ap, use){
   }
 }
 const _pp = V(), _pv = V(), _pf = V(), _pr = V(), _pu = V(), _pc = V(), _pq = new THREE.Quaternion(), _pdq = new THREE.Quaternion(), _pe = new THREE.Euler();
-if (window.__IPDEBUG) window.__ip = { startBoss:()=>startBoss(), boss:()=>boss, aim:()=>({TGT, aimHit}), icons:()=>icons, S:()=>S, mouse:()=>mouse, G:()=>G, P:()=>P, viruses:()=>viruses, bullets:()=>bullets, spawnVirus, V, fwd:()=>fwd, right:()=>right, up:()=>up };
+if (window.__IPDEBUG) window.__ip = { startBoss:()=>startBoss(), boss:()=>boss, aim:()=>({TGT, aimHit}), icons:()=>icons, S:()=>S, mouse:()=>mouse, G:()=>G, P:()=>P, viruses:()=>viruses, bullets:()=>bullets, spawnVirus, damage, MS:()=>MS, missiles:()=>missiles, pickups:()=>pickups, V, fwd:()=>fwd, right:()=>right, up:()=>up };
 function scanTarget(){
   // nearest hostile by angle from the nose: 'near' inside a wide cone, 'locked' inside the firing cone
   let best = null, bestAng = NEAR_ANG;
@@ -1264,10 +1393,12 @@ function aimDir(origin, baseDir){
   if (boss) consider(boss.g.position, boss.vel);
   aimHit = !!best; aimDist = best ? best.d : 320;
   if (!best) return baseDir.clone();
-  const tt = best.d / 520;
-  // only pull part of the way toward an imperfect lead, so locks help without being perfect
-  const assisted = _t2.copy(best.pos).addScaledVector(best.vel, tt*0.7).sub(origin).normalize();
-  return baseDir.clone().lerp(assisted, 0.7).normalize();
+  // aim toward the lead marker (target motion minus your drift, since shots carry your velocity), but only
+  // part of the way, by the ship's auto-aim accuracy, plus a little scatter that shrinks as accuracy rises
+  const acc = shipDef().aim || 0.6, tt = best.d / 520;
+  const lead = _t2.copy(best.pos).addScaledVector(best.vel, tt).addScaledVector(P.vel, -tt).sub(origin).normalize();
+  const dir = baseDir.clone().lerp(lead, acc).normalize();
+  return dir.addScaledVector(randDir(), (1 - acc)*0.025).normalize();
 }
 
 function update(dt){
@@ -1308,7 +1439,7 @@ function update(dt){
     } else _bankRate = 0;
     if (dt > 0) P.rate.lerp(_rate.set(_e.x/dt, _e.y/dt, _e.z/dt), Math.min(1, dt*6));
     fwd.set(0,0,-1).applyQuaternion(P.q); up.set(0,1,0).applyQuaternion(P.q); right.set(1,0,0).applyQuaternion(P.q);
-    scanTarget();
+    scanTarget(); scanMissile(dt);
 
     // throttle: a setting that stays where you put it. 0..1 normal, 1..REDLINE burns boost
     if (keys.th && throttle < 1) throttle = Math.min(1, throttle + 0.8*dt);
@@ -1319,19 +1450,21 @@ function update(dt){
     const holdBoost = !!(keys.boost || pad.boost);
     let want = holdBoost ? REDLINE : throttle;
     if (want > 1 && P.boost <= 0) want = 1;                    // redline needs boost
+    if (P.fuel <= 0 && !INF()){ want = 0; if (!P.warned.fuel){ P.warned.fuel = true; toast('FUEL EMPTY · engine off, drifting. Grab a fuel cell.'); } } else P.warned.fuel = false;
     effThr = want;
     P.boosting = want > 1.02;
     P.thrust = want > 0.03;
     // engine spool: thrust ramps toward the requested level instead of switching instantly
     P.spool += Math.sign(want - P.spool) * Math.min(Math.abs(want - P.spool), (want > P.spool ? 2.6 : 3.2)*dt);
     if (P.spool > 0.005) P.vel.addScaledVector(fwd, S.top*0.7*P.spool*dt);   // steady speed ≈ throttle × top speed
+    if (P.spool > 0.005 && !INF()) P.fuel = Math.max(0, P.fuel - S.burn*Math.min(1, P.spool)*dt);
     if (P.boosting){
       if (!P.wasBoosting) beep(220,0.25,'sawtooth',0.035,400);
       P.boost = Math.max(0, P.boost - 45*Math.min(1, (want-1)/(REDLINE-1))*dt); P.boostIdle = 0;
       for (let i=0;i<2;i++) trail(_t.copy(P.pos).addScaledVector(fwd,-3), _t2.copy(fwd).multiplyScalar(-60).add(randDir().multiplyScalar(8)), Math.random()<.5?'#9ff':'#fff', 0.45);
     } else {
       P.boostIdle += dt;
-      if (P.boostIdle > 0.8) P.boost = Math.min(S.tank, P.boost + S.tankRegen*dt);
+      if (P.boostIdle > 0.8 && (P.fuel > 0 || INF())){ const add = Math.min(S.tank - P.boost, S.tankRegen*dt); P.boost += add; if (!INF()) P.fuel = Math.max(0, P.fuel - add*0.3); }   // boost recharges from fuel
       if (P.spool > 0.05){ if (Math.random()<0.6*Math.min(1,P.spool)) trail(_t.copy(P.pos).addScaledVector(fwd,-3), _t2.copy(fwd).multiplyScalar(-35).add(randDir().multiplyScalar(6)), '#fa3', 0.3); }
     }
     P.wasBoosting = P.boosting; P.thrAmt = P.spool; P.brkAmt = brakeAmt;
@@ -1362,6 +1495,11 @@ function update(dt){
         for (let i = 0; i < n; i++){ const az = a0 + i*Math.PI*2/n + (Math.random() - 0.5)*0.9, r = 0.05 + Math.random()*0.13;
           shots.push([Math.cos(az)*r, Math.sin(az)*r, 0, wk]); }
       }
+      if (!INF()){
+        if (P.ammo <= 0){ shots = [[0,0,0]]; P.cool *= 3; }      // out of ammo: slow backup gun, single shot, free
+        else { P.ammo = Math.max(0, P.ammo - shots.filter(s => (s[3] || 1) >= 1).length);   // Bulwark's built-in scatter pellets are free
+          if (P.ammo <= 0) toast('AMMO EMPTY · backup gun only. Grab ammo drops.'); }
+      }
       P.gunSide = -(P.gunSide || 1);
       for (const [dy, dp, off, wf = 1] of shots){
         const g = new THREE.Mesh(fpv ? BG_T : BG_P, BM_P);
@@ -1387,7 +1525,7 @@ function update(dt){
     }
   } else if (G.lives >= 0){
     P.respawn -= dt;
-    if (P.respawn <= 0){ Object.assign(P, {shield:S.maxShield, boost:S.tank, inv:2.5, alive:true, spool:0, thrSm:0, brkSm:0}); gateSm.coast = gateSm.ghost = null; throttle = 0; mouse.dx = mouse.dy = mouse.sx = mouse.sy = 0; P.ang.set(0,0,0); P.rate.set(0,0,0); P.vel.set(0,0,0); ship.visible = true; }
+    if (P.respawn <= 0){ Object.assign(P, {shield:S.maxShield, boost:S.tank, hull:S.maxHull, ammo:Math.max(P.ammo, S.maxAmmo*0.6), fuel:Math.max(P.fuel, S.maxFuel*0.6), msl:Math.max(P.msl, Math.ceil(S.maxMsl/2)), inv:2.5, alive:true, spool:0, thrSm:0, brkSm:0}); gateSm.coast = gateSm.ghost = null; throttle = 0; mouse.dx = mouse.dy = mouse.sx = mouse.sy = 0; P.ang.set(0,0,0); P.rate.set(0,0,0); P.vel.set(0,0,0); ship.visible = true; }
   }
   ship.position.copy(P.pos);
   {
@@ -1406,6 +1544,7 @@ function update(dt){
   // ---- bullets ----
   for (const b of bullets){ b.g.position.addScaledVector(b.vel, dt); b.life -= dt; if (b.g.position.lengthSq() > (R+80)*(R+80)) b.life = 0; }
 
+  updateMissiles(dt);
   // ---- virus spawning ----
   const maxV = boss ? 7 : 2 + Math.min(6, diff);
   virusT -= dt;
@@ -1486,7 +1625,7 @@ function update(dt){
       b.life = 0;
       if (ic.infected){
         ic.hp -= b.dmg || 1; ic.flash = 0.1; SFX.hit();
-        if (ic.hp <= 0){ ic.infected = false; ic.hp = 3; ic.glow.material.color.set(0x4ade80); ic.glow.material.opacity = 0.35; burst(ic.g.position, '#4ade80', 26, 35); addScore(50); dropAt(ic.g.position, 3, 0.25); msg('CLEANSED +50', ic.g.position, '#4ade80'); SFX.cleanse(); ic.vel.multiplyScalar(0.2); }
+        if (ic.hp <= 0) cleanseIcon(ic);
       } else {
         ic.dead = true; burst(ic.g.position, '#ffcc66', 30, 40); addScore(-25); msg('DELETED ' + short(ic.f.name) + ' −25', ic.g.position, '#fc6'); SFX.del();
       }
@@ -1494,12 +1633,7 @@ function update(dt){
     }
     if (b.life > 0 && boss && bp.distanceToSquared(boss.g.position) < 38*38){
       b.life = 0; boss.hp -= b.dmg || 1; boss.flash = 0.06; SFX.hit(); addScore(10); burst(bp,'#f56',6,30,0.4);
-      if (boss.hp <= 0){
-        burst(boss.g.position, '#f35', 400, 140, 2.2); burst(boss.g.position, '#fff', 200, 90, 1.6); SFX.boom(); setTimeout(SFX.boom,200); setTimeout(SFX.boom,450); rumble(900, 1);
-        addScore(5000); scene.remove(boss.g); boss = null;
-        viruses.forEach(v => { burst(v.g.position, '#e040fb', 12, 30); v.hp = 0; }); bullets.forEach(x => { if (x.enemy) x.life = 0; });
-        setBanner('INNER DEMON DESTROYED', 3); later(3.4, () => showEnd(true));
-      }
+      if (boss.hp <= 0) killBoss();
     }
   }
   const fw = P.alive && P.pw.firewall > 0;
@@ -1563,7 +1697,9 @@ function update(dt){
       bullets.forEach(b => { if (b.enemy) b.life = 0; });
       addScore(500); G.bits += 10; setBanner('SECTOR CLEAN  +500  ◆10', 2.4); SFX.wave();
       pickups.forEach(k => { if (k.type === 'bit') G.bits++; k.life = 0; });
-      const finish = () => { if (!G.cur._finish) return; G.cur._finish = null; G.cur._waiting = false; G.cur.cleared = true; G.cleared++; if (G.lives < 9 && G.cleared % 3 === 0) G.lives++; showMap(); };
+      const finish = () => { if (!G.cur._finish) return; G.cur._finish = null; G.cur._waiting = false;
+        P.ammo = Math.min(S.maxAmmo, P.ammo + S.maxAmmo*0.25); P.fuel = Math.min(S.maxFuel, P.fuel + S.maxFuel*0.25); P.msl = Math.min(S.maxMsl, P.msl + 1);   /* resupply for clearing */
+        G.cur.cleared = true; G.cleared++; if (G.lives < 9 && G.cleared % 3 === 0) G.lives++; showMap(); };
       G.cur._finish = finish;
       later(2.4, finish);
     }
@@ -1687,12 +1823,24 @@ function drawCockpitPanels(t){
     let s2 = str; while (s2.length > 3 && hx.measureText(s2).width > w) s2 = '…' + s2.slice(2); hx.fillText(s2, x, yy); };
   const sh = Math.max(0, P.shield)/S.maxShield;
   const pwList = [['spread','WIDE'],['rapid','RAPID'],['firewall','FW']].filter(([k]) => P.pw[k] > 0).map(([k,l]) => `${l} ${Math.ceil(P.pw[k])}s`).join(' ');
-  const status = sh < 0.25 ? (Math.floor(t*4)%2 ? '⚠ SHIELD CRITICAL' : '') : pwList || 'ALL SYSTEMS NOMINAL';
+  // two half-width bars on one row
+  const bar2 = (l1, f1, c1, l2, f2, c2) => (x, yy, w) => {
+    const half = (w - fs)/2;
+    for (const [l, f, c, ox] of [[l1, f1, c1, 0], [l2, f2, c2, half + fs]]){
+      hx.font = `${fs}px Consolas,monospace`; hx.fillStyle = '#8bd'; hx.textAlign = 'left'; hx.fillText(l, x + ox, yy);
+      const bx = x + ox + fs*2.9, bwid = half - fs*2.9;
+      hx.fillStyle = 'rgba(20,50,70,.8)'; hx.fillRect(bx, yy - fs*0.7, bwid, fs*0.6);
+      hx.fillStyle = c; hx.fillRect(bx, yy - fs*0.7, bwid*Math.max(0, Math.min(1, f)), fs*0.6);
+    }
+  };
+  const hl = Math.max(0, P.hull)/S.maxHull, fu = P.fuel/S.maxFuel, inf = INF();
+  const warn = hl < 0.3 ? '⚠ HULL CRITICAL' : (!inf && P.fuel <= 0) ? '⚠ FUEL EMPTY' : (!inf && P.ammo <= 0) ? '⚠ AMMO EMPTY' : sh < 0.25 ? '⚠ SHIELD LOW' : '';
+  const status = warn ? (Math.floor(t*4)%2 ? warn : '') : pwList || (inf ? '∞ INFINITE RESOURCES' : 'ALL SYSTEMS NOMINAL');
   panel(nx - nr - 18 - pw, 'SYSTEMS', [
-    bar('SHLD', sh, P.pw.firewall > 0 ? '#c084fc' : sh > 0.5 ? '#5ff' : sh > 0.25 ? '#fc4' : '#f45', Math.round(Math.max(0,P.shield)) + ''),
-    bar('BOOST', P.boost/S.tank, P.boosting ? '#fff' : '#fbbf24', Math.round(P.boost) + ''),
-    text('LIVES ' + '▲'.repeat(Math.max(0, Math.min(9, G.lives))) + '   ◆ ' + G.bits, '#9ff'),
-    text(status, sh < 0.25 ? '#f67' : pwList ? '#fde68a' : '#4ade80'),
+    bar2('SHD', sh, P.pw.firewall > 0 ? '#c084fc' : sh > 0.5 ? '#5ff' : sh > 0.25 ? '#fc4' : '#f45', 'HUL', hl, hl > 0.5 ? '#a3e635' : hl > 0.3 ? '#fc4' : '#f45'),
+    bar2('FUE', inf ? 1 : fu, fu > 0.25 || inf ? '#22d3ee' : '#f45', 'BST', P.boost/S.tank, P.boosting ? '#fff' : '#fbbf24'),
+    text((inf ? 'AMMO ∞  MSL ∞' : `AMMO ${P.ammo}  MSL ${P.msl}`) + '  ▲' + Math.max(0, G.lives) + '  ◆' + G.bits, !inf && (P.ammo <= 0 || P.ammo < S.maxAmmo*0.15) ? '#fc4' : '#9ff'),
+    text(status, warn ? '#f67' : pwList ? '#fde68a' : '#4ade80'),
   ]);
   if (TC.used){ hx.restore(); return; } // touch buttons own the right side on phones
   const spd = P.vel.length(), edge = Math.max(0, Math.round(R - P.pos.length()));
@@ -1886,6 +2034,18 @@ function drawHUD(t){
       }
     }
   }
+  // missile seeker: orange diamond, shrinks while the lock builds, solid + MSL LOCK when ready
+  if (P.alive && MS.tgt){
+    const mp = project(MS.tgt.pos);
+    if (mp){
+      const f = Math.min(1, MS.t/MSL_LOCK_T), sz = MS.locked ? 20 : 44 - f*22, col = MS.locked ? '#fb923c' : `rgba(251,146,60,${0.45 + f*0.4})`;
+      hx.strokeStyle = 'rgba(0,8,16,.6)'; hx.lineWidth = 4; hx.beginPath(); hx.moveTo(mp.x, mp.y-sz); hx.lineTo(mp.x+sz, mp.y); hx.lineTo(mp.x, mp.y+sz); hx.lineTo(mp.x-sz, mp.y); hx.closePath(); hx.stroke();
+      hx.strokeStyle = col; hx.lineWidth = MS.locked ? 2.4 : 1.6; if (!MS.locked) hx.setLineDash([5,4]);
+      hx.beginPath(); hx.moveTo(mp.x, mp.y-sz); hx.lineTo(mp.x+sz, mp.y); hx.lineTo(mp.x, mp.y+sz); hx.lineTo(mp.x-sz, mp.y); hx.closePath(); hx.stroke(); hx.setLineDash([]);
+      hx.font = 'bold 10px Consolas,monospace'; hx.textAlign = 'left'; hx.fillStyle = col;
+      hx.fillText(MS.locked ? ((INF() || P.msl > 0) ? 'MSL LOCK' : 'MSL LOCK · EMPTY') : 'MSL', mp.x + sz + 6, mp.y + 4);
+    }
+  }
   // aim-lead marker: where to point so shots meet the target (its motion and your drift included).
   // Shown while tracking AND locked, in its own color (white core, gold ring) so it never reads as an enemy.
   if (P.alive && TGT && tp){
@@ -1943,15 +2103,22 @@ function drawHUD(t){
   hx.fillStyle = '#0a2433'; hx.fillRect(16, 36, bw, 8);
   hx.fillStyle = P.pw.firewall > 0 ? '#c084fc' : sh > 0.5 ? '#5ff' : sh > 0.25 ? '#fc4' : '#f45'; hx.fillRect(16, 36, bw*sh, 8);
   hx.font = '10px Consolas,monospace'; hx.fillStyle = '#7ab'; hx.fillText('SHIELD', bw+22, 44);
+  const inf = INF(), mini = (y, w, frac, bg, fg, lab) => { hx.fillStyle = bg; hx.fillRect(16, y, w, 5); hx.fillStyle = fg; hx.fillRect(16, y, w*Math.max(0, Math.min(1, frac)), 5); hx.fillStyle = '#7ab'; hx.fillText(lab, w+22, y+6); };
+  const hlw = 140 * S.maxHull/100, hl = Math.max(0, P.hull)/S.maxHull;
+  mini(48, hlw, hl, '#1b2a0a', hl > 0.5 ? '#a3e635' : hl > 0.3 ? '#fc4' : '#f45', 'HULL');
   const tw = 140 * S.tank/100;
-  hx.fillStyle = '#2a1f08'; hx.fillRect(16, 49, tw, 5); hx.fillStyle = P.boosting ? '#fff' : '#fbbf24'; hx.fillRect(16, 49, tw*P.boost/S.tank, 5);
-  hx.fillStyle = '#7ab'; hx.fillText('BOOST', tw+22, 55);
-  hx.font = 'bold 13px Consolas,monospace'; hx.fillStyle = '#9ff';
-  hx.fillText('LIVES ' + '▲'.repeat(Math.max(0, Math.min(9, G.lives))), 16, 76);
-  hx.fillText('◆ ' + G.bits, 16, 96);
+  mini(58, tw, P.boost/S.tank, '#2a1f08', P.boosting ? '#fff' : '#fbbf24', 'BOOST');
+  const fw2 = 140 * S.maxFuel/100;
+  mini(68, fw2, inf ? 1 : P.fuel/S.maxFuel, '#082a33', !inf && P.fuel/S.maxFuel < 0.25 ? '#f45' : '#22d3ee', inf ? 'FUEL ∞' : 'FUEL');
+  hx.font = 'bold 13px Consolas,monospace'; hx.fillStyle = !inf && P.ammo < S.maxAmmo*0.15 ? '#fc4' : '#9ff';
+  hx.fillText(inf ? 'AMMO ∞   MSL ∞' : `AMMO ${P.ammo}   MSL ${P.msl}`, 16, 90);
+  hx.fillStyle = '#9ff';
+  hx.fillText('LIVES ' + '▲'.repeat(Math.max(0, Math.min(9, G.lives))) + '   ◆ ' + G.bits, 16, 108);
+  const warn = hl < 0.3 ? '⚠ HULL CRITICAL' : (!inf && P.fuel <= 0) ? '⚠ FUEL EMPTY · DRIFTING' : (!inf && P.ammo <= 0) ? '⚠ AMMO EMPTY · BACKUP GUN' : '';
+  if (warn && Math.floor(t*4)%2){ hx.fillStyle = '#f67'; hx.fillText(warn, 16, 144); }
   let px = 16;
   for (const [k, lab] of [['spread','WIDE'],['rapid','RAPID'],['firewall','FIREWALL']]){
-    if (P.pw[k] > 0){ hx.fillStyle = PICKUPS[k].c; hx.font = 'bold 11px Consolas,monospace'; const s = `${lab} ${Math.ceil(P.pw[k])}s`; hx.fillText(s, px, 116); px += hx.measureText(s).width + 12; }
+    if (P.pw[k] > 0){ hx.fillStyle = PICKUPS[k].c; hx.font = 'bold 11px Consolas,monospace'; const s = `${lab} ${Math.ceil(P.pw[k])}s`; hx.fillText(s, px, 126); px += hx.measureText(s).width + 12; }
   }
   }
   // top-right
