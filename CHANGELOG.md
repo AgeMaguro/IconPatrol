@@ -11,6 +11,12 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.36 - 2026-11-06
+- Recycle Bin now looks like a real black hole: a black shadow, a spinning accretion disk of hot orange streaks, the gravitationally lensed far side of the disk wrapping up over and under the shadow (it always faces you and spins), a thin photon ring and a faint wireframe edge. The navball dot and labels are orange to match.
+- Event horizon: the Bin has a Schwarzschild radius r_s, 2.6x its core. Past it, all outward motion is cancelled and nothing escapes, boost included. In sectors, falling into the core deletes your ship (one life) and you respawn safely outside the well. In free flight it still spits you back out.
+- It grows faster and bigger: core and look up to 3.5x (was 2.2x), pull range up to 1.8x (was 1.5x).
+- New GRAVITY WELL panel while you're in its pull, above the SYSTEMS panel in the cockpit and bottom left in chase view. It shows mass M, r_s = 2GM/c², your distance and distance to the horizon, and escape velocity at your distance (from the Bin's real pull) against your speed and max boost speed. A threat bar marks the throttle-max and boost-max points, with a threat level (LOW, MODERATE, HIGH = boost to escape, CRITICAL, EVENT HORIZON = no escape) and a mini radar of the well.
+
 ## 1.0.35 - 2026-11-06
 - PC app checks for updates at launch. A small "ICON PATROL · Checking for updates…" window opens first. If there's a newer release, it downloads with a progress bar, swaps the new exe in and restarts, and the game only opens once you're on the new version. With no update it opens the game right away. Offline, it starts after a short note; with no answer from GitHub, it gives up after 8 s and starts anyway. If the update fails, it says so and opens the game. The ⬆ button on the title screen still works for checking by hand.
 

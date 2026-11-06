@@ -2634,24 +2634,47 @@ function makeCloud(){
   haz.clouds.push({g, r, geo, base:pos.slice()});
 }
 // the Recycle Bin: a black hole that pulls in you, rocks, icons and pickups. Whatever reaches the core is deleted.
+// black-hole look: an accretion disk of hot streaks, plus the "lensed" far side of the disk that gravity bends up and
+// over (and under) the shadow, which always faces you, and a thin photon ring. Both disks spin.
+function diskTex(inner, seed){
+  const N = 512, c = document.createElement('canvas'); c.width = c.height = N; const x = c.getContext('2d'), m = N/2;
+  const g = x.createRadialGradient(m, m, inner*m, m, m, m);
+  g.addColorStop(0, 'rgba(255,240,200,.95)'); g.addColorStop(0.18, 'rgba(255,170,60,.85)'); g.addColorStop(0.55, 'rgba(235,90,20,.45)'); g.addColorStop(1, 'rgba(120,20,0,0)');
+  x.fillStyle = g; x.beginPath(); x.arc(m, m, m, 0, 7); x.arc(m, m, inner*m, 0, 7, true); x.fill();
+  x.globalCompositeOperation = 'lighter';
+  for (let i=0;i<520;i++){   // streaks: short arcs, brighter and denser near the inner edge
+    const t = Math.pow(Math.random(), 1.8), r = (inner + (1 - inner)*t)*m, a = Math.random()*7, len = 0.25 + Math.random()*2.2;
+    x.strokeStyle = `hsla(${18 + Math.random()*26},100%,${55 + (1 - t)*30}%,${0.08 + (1 - t)*0.35})`; x.lineWidth = 0.6 + Math.random()*2.4;
+    x.beginPath(); x.arc(m, m, r, a, a + len); x.stroke();
+  }
+  return new THREE.CanvasTexture(c);
+}
 const BIN_RANGE = 650, BIN_CORE = 28, BIN_VIS = 1.6;   // starting size (was range 480, core 18, look 1x)
+const HORIZON_K = 2.6;   // event horizon ("Schwarzschild radius") = 2.6 x the core: inside it nothing gets out
 function makeBin(){
   const g = new THREE.Group(), rings = [];
-  g.add(new THREE.Mesh(new THREE.SphereGeometry(16, 20, 14), basic(0x000000)));
-  g.add(glowSprite(0x8b5cf6, 120, 0.45));
-  [[30,0x7dd3fc,0.8],[48,0x818cf8,0.55],[72,0xc084fc,0.35],[98,0xa855f7,0.2]].forEach(([r,c,o],i) => {
-    const m = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.TorusGeometry(r, 0.8, 3, 64)), new THREE.LineBasicMaterial({color:c, transparent:true, opacity:o}));
-    m.rotation.x = Math.PI/2 + (i - 1.5)*0.12; g.add(m); rings.push(m); });
+  const addMat = map => new THREE.MeshBasicMaterial({map, transparent:true, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, depthWrite:false});
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(16, 28, 20), basic(0x000000)));   // the shadow
+  g.add(glowSprite(0xff7a2a, 150, 0.28));
+  const disk = new THREE.Mesh(new THREE.RingGeometry(20, 78, 128, 1), addMat(diskTex(20/78)));
+  disk.rotation.x = -Math.PI/2 + 0.18; g.add(disk); rings.push(disk);
+  const halo = new THREE.Mesh(new THREE.RingGeometry(18.5, 50, 128, 1), addMat(diskTex(18.5/50))); halo.material.opacity = 0.8; g.add(halo);
+  const photon = new THREE.Mesh(new THREE.RingGeometry(17, 17.9, 96, 1), new THREE.MeshBasicMaterial({color:0xffe0b0, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, depthWrite:false})); g.add(photon);
+  const wire = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.TorusGeometry(96, 0.8, 3, 72)), new THREE.LineBasicMaterial({color:0xa855f7, transparent:true, opacity:0.22}));
+  wire.rotation.x = Math.PI/2 + 0.18; g.add(wire); rings.push(wire);   // a faint wireframe edge so it still fits the game's look
   const lab = canvasSprite(300, 64, (x, w, h) => {
-    x.strokeStyle = '#c4b5fd'; x.lineWidth = 4; x.strokeRect(14, 14, 28, 38); x.beginPath(); x.moveTo(8, 14); x.lineTo(48, 14); x.moveTo(22, 8); x.lineTo(34, 8); x.stroke();
-    x.font = 'bold 30px Consolas,monospace'; x.fillStyle = '#e9d5ff'; x.fillText('RECYCLE BIN', 62, 44); }, 14);
-  lab.position.y = 44; g.add(lab);
+    x.strokeStyle = '#fdba74'; x.lineWidth = 4; x.strokeRect(14, 14, 28, 38); x.beginPath(); x.moveTo(8, 14); x.lineTo(48, 14); x.moveTo(22, 8); x.lineTo(34, 8); x.stroke();
+    x.font = 'bold 30px Consolas,monospace'; x.fillStyle = '#ffedd5'; x.fillText('RECYCLE BIN', 62, 44); }, 14);
+  lab.position.y = 62; g.add(lab);
   { let p, t = 0; do { p = P.pos.clone().addScaledVector(randDir(), 500 + Math.random()*350); t++; } while (p.length() > R*0.78 && t < 60);
     if (p.length() > R*0.78) p.setLength(R*0.6); g.position.copy(p); }   // 500-850 m from you: findable, but not on top of you
   g.traverse(o => { if (o.material) o.material.fog = false; });   // shows through the fog from across the sector
   hazGroup.add(g);
-  haz.bins.push({g, rings, range:BIN_RANGE, core:BIN_CORE, mass:0, told:0, vis:BIN_VIS}); g.scale.setScalar(BIN_VIS);
+  haz.bins.push({g, rings, halo, photon, spin:0, range:BIN_RANGE, core:BIN_CORE, mass:0, told:0, vis:BIN_VIS}); g.scale.setScalar(BIN_VIS);
 }
+// escape velocity from distance d, worked out from the Bin's real pull a(x) = 8 + 150(1 - x/range)^3:
+// v_esc = sqrt(2 * integral from d to range of a) = sqrt(2 * (8(range-d) + 37.5 range k^4)), k = 1 - d/range
+function binVesc(b, d){ if (d >= b.range) return 0; const k = 1 - d/b.range; return Math.sqrt(2*(8*(b.range - d) + 37.5*b.range*k*k*k*k)); }
 // packet stream: a lane of fast data blocks. Crossing it hurts; flying along it gives you a speed boost.
 const PK_EDGE = new THREE.EdgesGeometry(new THREE.BoxGeometry(3.4, 3.4, 7));
 function makeStream(){
@@ -2723,7 +2746,7 @@ function hazBullet(b){   // your shots set off pop-up mines
 }
 function updateHazards(dt){
   haz.t += dt; const T = haz.t;
-  P.inCloud = false; P.binPull = 0; P.riding = false; P.mineArmed = false; P.inSweep = false;
+  P.inCloud = false; P.binPull = 0; P.well = null; P.riding = false; P.mineArmed = false; P.inSweep = false;
   // firewall grids
   for (const gr of haz.grids){
     gr.cyc = (gr.cyc + dt) % 5.5; gr.on = gr.cyc < 4; gr.cd -= dt;
@@ -2750,11 +2773,13 @@ function updateHazards(dt){
   }
   if (P.inCloud){ TGT = null; MS.tgt = null; MS.t = 0; MS.locked = false; }   // targeting offline inside the static
   // Recycle Bin: pulls in you, rocks, viruses, icons, pickups and the other hazards. Everything it eats adds mass,
-  // and the Bin grows: its core and look up to 2.2x, its pull range up to 1.5x.
+  // and the Bin grows: its core and look up to 3.5x, its pull range up to 1.8x.
   for (const b of haz.bins){
-    b.rings.forEach((m,i) => m.rotation.z += dt*(1.6 - i*0.3));
-    const gf = 1 + Math.min(1.2, b.mass*0.03);
-    b.range = BIN_RANGE*(1 + Math.min(0.5, b.mass*0.015)); b.core = BIN_CORE*gf;   // reach grows to 1.5x, the core and look to 2.2x
+    b.spin += dt*0.7; b.rings[0].rotation.z = b.spin; b.rings[1].rotation.z = -b.spin*0.3;
+    b.halo.quaternion.copy(camera.quaternion); b.halo.rotateZ(b.spin*0.8);   // the lensed arc always faces you
+    b.photon.quaternion.copy(camera.quaternion);
+    const gf = 1 + Math.min(2.5, b.mass*0.06);   // grows fast: core and look up to 3.5x, reach up to 1.8x
+    b.range = BIN_RANGE*(1 + Math.min(0.8, b.mass*0.025)); b.core = BIN_CORE*gf; b.horizon = b.core*HORIZON_K;
     b.vis += (BIN_VIS*gf - b.vis)*Math.min(1, dt*2); b.g.scale.setScalar(b.vis);   // grows smoothly
     const pull = (pos, mul) => { hzA.copy(b.g.position).sub(pos); const d = hzA.length(); if (d > b.range || d < 0.1) return -1; const k = 1 - d/b.range; hzA.divideScalar(d).multiplyScalar(mul*(8 + 150*k*k*k)); return d; };
     // things without their own velocity (or whose AI keeps resetting it) get a separate drift toward the Bin
@@ -2764,10 +2789,20 @@ function updateHazards(dt){
     const eat = (pos, mass, color, n) => { b.mass += mass; burst(pos, color || '#c084fc', n || 14, 30, 0.6);
       if (Math.floor(b.mass/6) > b.told){ b.told = Math.floor(b.mass/6); msg('THE RECYCLE BIN GROWS', null, '#e9d5ff'); beep(110,0.4,'sawtooth',0.04,60); } };
     if (P.alive){ const d = pull(P.pos, 1);
-      if (d >= 0){ P.vel.addScaledVector(hzA, dt); P.binPull = Math.max(P.binPull, 1 - d/b.range);
+      if (d >= 0){ P.vel.addScaledVector(hzA, dt); P.binPull = Math.max(P.binPull, 1 - d/b.range); P.well = b; P.wellD = d;
+        if (d < b.horizon){   // past the event horizon: every path leads inward, no thrust or boost gets you out
+          const n = hzB.copy(P.pos).sub(b.g.position).divideScalar(d || 1), vr = P.vel.dot(n);
+          if (vr > 0) P.vel.addScaledVector(n, -vr); P.vel.addScaledVector(n, -60*dt);
+        }
         if (d < b.core + 3){
-          const out = randDir(); P.pos.copy(b.g.position).addScaledVector(out, b.core + 70); P.vel.copy(out).multiplyScalar(150);
-          damage(35); burst(b.g.position, '#c084fc', 50, 70, 1); SFX.boom(); rumble(400, 1); msg('RECYCLED · restored from the Bin', null, '#e9d5ff');
+          burst(b.g.position, '#ff9a3d', 60, 80, 1.2); SFX.boom(); rumble(500, 1);
+          const out = randDir();
+          if (G.cur && G.cur.free){   // free flight does no damage, so the Bin just spits you back out
+            P.pos.copy(b.g.position).addScaledVector(out, b.core + 70); P.vel.copy(out).multiplyScalar(150); msg('RECYCLED · restored from the Bin', null, '#ffedd5');
+          } else {                    // sectors: the ship is deleted (one life); you respawn safely outside the well
+            P.pos.copy(b.g.position).addScaledVector(out, b.range + 150); if (P.pos.length() > R*0.9) P.pos.setLength(R*0.9); P.vel.set(0,0,0);
+            msg('SHIP DELETED · lost to the Recycle Bin', null, '#ff6680'); P.inv = 0; P.pw.firewall = 0; damage(Math.max(0, P.shield) + Math.max(0, P.hull) + 1);
+          }
         } } }
     for (const k of rocks){ if (k.hp <= 0) continue; const d = pull(k.g.position, 1); if (d < 0) continue; k.vel.addScaledVector(hzA, dt); if (d < b.core + k.r*0.5){ k.hp = 0; eat(k.g.position, k.r/8, '#d6a35c'); } }
     for (const v of viruses){ if (v.hp <= 0) continue; const d = drag(v, v.g.position, 0.9); if (d < 0) continue;
@@ -2834,17 +2869,57 @@ function updateHazards(dt){
     }
   }
 }
+function drawGravPanel(){
+  const b = P.well; if (!b || !P.alive) return;
+  const d = P.wellD, ve = binVesc(b, d), cLight = binVesc(b, b.horizon), spd = P.vel.length(), top = S.top, topB = S.top*REDLINE;
+  const inside = d < b.horizon, flash = Math.floor(performance.now()/220) % 2;
+  const lvl = inside ? 4 : ve > topB ? 3 : ve > top ? 2 : ve > top*0.6 ? 1 : 0;
+  const LV = [['LOW','#4ade80','thrust away to leave'],['MODERATE','#facc15','full throttle to escape'],['HIGH','#fb923c','BOOST TO ESCAPE'],['CRITICAL','#f43f5e','escape barely possible'],['EVENT HORIZON','#ff2050','NO ESCAPE']][lvl];
+  // above the cockpit SYSTEMS panel in first person, bottom-left corner in chase view
+  let pw = 262, ph = 122, x = 16, y;
+  if (fpv){ const {nx, nr, dh} = cockpitGeo(); const cph = Math.max(H < 320 ? 40 : 54, Math.min(118, dh - (H < 320 ? 8 : 18))); const cpw = Math.max(120, Math.min(250, W/2 - nr - 36));
+    pw = Math.max(cpw, 220); x = nx - nr - 18 - cpw; y = H - cph - (H < 320 ? 4 : 8) - ph - 10; }
+  else y = H - ph - (TC.used ? 120 : 16);
+  if (x < 4) x = 4;
+  hx.save();
+  hx.fillStyle = 'rgba(14,4,6,.72)'; hx.fillRect(x, y, pw, ph);
+  hx.strokeStyle = lvl >= 3 && flash ? LV[1] : 'rgba(251,146,60,.6)'; hx.lineWidth = lvl >= 3 ? 2 : 1; hx.strokeRect(x, y, pw, ph);
+  hx.fillStyle = 'rgba(251,146,60,.16)'; hx.fillRect(x+1, y+1, pw-2, 17);
+  hx.font = 'bold 11px Consolas,monospace'; hx.textAlign = 'left'; hx.fillStyle = '#fdba74'; hx.fillText('GRAVITY WELL · RECYCLE BIN', x + 8, y + 13);
+  const M = 10 + b.mass, f = '11px Consolas,monospace';
+  const row = (txt, yy, col) => { hx.font = f; hx.fillStyle = col || '#fed7aa'; hx.fillText(txt, x + 8, y + yy); };
+  row(`M ${M.toFixed(1)} PB   r_s = 2GM/c² = ${Math.round(b.horizon)} m`, 32);
+  row(`DIST ${Math.round(d)} m   ${inside ? 'INSIDE HORIZON' : 'to horizon ' + Math.round(d - b.horizon) + ' m'}`, 47, inside ? '#ff6680' : null);
+  row(`v_esc ${inside ? '> c' : Math.round(ve)}   you ${Math.round(spd)}   max ${Math.round(topB)}`, 62, ve > topB || inside ? '#ff8090' : null);
+  // threat bar
+  const bx = x + 8, by = y + 72, bw = pw - 16 - 54, frac = inside ? 1 : Math.min(1, ve/(topB*1.15));
+  hx.fillStyle = 'rgba(60,20,20,.8)'; hx.fillRect(bx, by, bw, 9);
+  const gr = hx.createLinearGradient(bx, 0, bx + bw, 0); gr.addColorStop(0, '#4ade80'); gr.addColorStop(0.45, '#facc15'); gr.addColorStop(0.75, '#fb923c'); gr.addColorStop(1, '#f43f5e');
+  hx.fillStyle = gr; hx.fillRect(bx, by, bw*frac, 9);
+  [top/(topB*1.15), 1/1.15].forEach(m => { hx.fillStyle = 'rgba(255,255,255,.7)'; hx.fillRect(bx + bw*m - 1, by - 2, 2, 13); });   // throttle-max and boost-max marks
+  hx.font = 'bold 12px Consolas,monospace'; hx.fillStyle = lvl >= 3 && !flash ? '#fff' : LV[1];
+  hx.fillText(`THREAT ${LV[0]}`, bx, y + 98); hx.font = f; hx.fillStyle = '#fca5a5'; hx.fillText(LV[2], bx, y + 113);
+  // little radial map: pull range, horizon, you
+  const cx = x + pw - 29, cy = y + 97, rr = 20;
+  hx.strokeStyle = 'rgba(251,146,60,.5)'; hx.lineWidth = 1; hx.beginPath(); hx.arc(cx, cy, rr, 0, 7); hx.stroke();
+  hx.fillStyle = 'rgba(244,63,94,.35)'; hx.beginPath(); hx.arc(cx, cy, Math.max(2, rr*b.horizon/b.range), 0, 7); hx.fill();
+  hx.fillStyle = '#000'; hx.beginPath(); hx.arc(cx, cy, Math.max(1.5, rr*b.core/b.range), 0, 7); hx.fill();
+  const sr = rr*Math.min(1, d/b.range); hx.fillStyle = '#5ff'; hx.beginPath(); hx.arc(cx + sr*0.7071, cy - sr*0.7071, 2.6, 0, 7); hx.fill();
+  hx.restore();
+}
 function drawHazHUD(){
+  drawGravPanel();
   for (const b of haz.bins){ const p = project(b.g.position); if (!p) continue; const d = Math.round(b.g.position.distanceTo(P.pos));
     if (d < b.range*0.35) continue;
     hx.font = 'bold 12px Consolas,monospace'; hx.textAlign = 'center'; hx.fillStyle = 'rgba(0,6,14,.55)'; const t = `RECYCLE BIN · ${d}m`, tw = hx.measureText(t).width + 12;
-    hx.fillRect(p.x - tw/2, p.y - 46, tw, 17); hx.fillStyle = '#d8b4fe'; hx.fillText(t, p.x, p.y - 33); }
+    hx.fillRect(p.x - tw/2, p.y - 46, tw, 17); hx.fillStyle = '#fdba74'; hx.fillText(t, p.x, p.y - 33); }
   const lines = [], fl = Math.floor(performance.now()/250) % 2;
   if (P.inCloud){
     for (let i=0;i<7;i++){ hx.fillStyle = Math.random() < 0.5 ? 'rgba(220,60,255,.16)' : 'rgba(60,255,140,.13)'; hx.fillRect(0, Math.random()*H, W, 2 + Math.random()*7); }
     lines.push(['▒ SIGNAL CORRUPTED · targeting offline ▒', fl ? '#e879f9' : '#4ade80']);
   }
-  if (P.binPull > 0.3) lines.push([P.binPull > 0.75 ? '⚠ RECYCLE BIN · BOOST TO ESCAPE' : '⚠ RECYCLE BIN GRAVITY', fl ? '#c084fc' : '#e9d5ff']);
+  if (P.well && P.wellD < P.well.horizon) lines.push(['⚠ PAST THE EVENT HORIZON · NO ESCAPE', fl ? '#ff2050' : '#fff']);
+  else if (P.binPull > 0.3) lines.push([P.binPull > 0.75 ? '⚠ RECYCLE BIN · BOOST TO ESCAPE' : '⚠ RECYCLE BIN GRAVITY', fl ? '#fb923c' : '#ffedd5']);
   if (haz.sweep && haz.sweep.warn > 0) lines.push([`⚠ DEFRAG SWEEP INCOMING · ${Math.ceil(haz.sweep.warn)}`, fl ? '#38bdf8' : '#e0f2fe']);
   else if (P.inSweep) lines.push(['DEFRAG SWEEP · move aside or ride it', '#7dd3fc']);
   if (P.riding) lines.push(['PACKET STREAM ▶▶ speed boost', '#4dffa0']);
@@ -3042,7 +3117,7 @@ function drawGates(gates, isGhost, fade, ap, use){
   }
 }
 const _pp = V(), _pv = V(), _pf = V(), _pr = V(), _pu = V(), _pc = V(), _pq = new THREE.Quaternion(), _pdq = new THREE.Quaternion(), _pe = new THREE.Euler();
-if (window.__IPDEBUG) window.__ip = { startBoss:()=>startBoss(), boss:()=>boss, aim:()=>({TGT, aimHit}), icons:()=>icons, S:()=>S, mouse:()=>mouse, G:()=>G, P:()=>P, viruses:()=>viruses, bullets:()=>bullets, rocks:()=>rocks, haz:()=>haz, startSweep, makeBin, seedHazards, spawnVirus, damage, MS:()=>MS, missiles:()=>missiles, pickups:()=>pickups, V, fwd:()=>fwd, right:()=>right, up:()=>up };
+if (window.__IPDEBUG) window.__ip = { startBoss:()=>startBoss(), boss:()=>boss, aim:()=>({TGT, aimHit}), icons:()=>icons, S:()=>S, mouse:()=>mouse, G:()=>G, P:()=>P, viruses:()=>viruses, bullets:()=>bullets, rocks:()=>rocks, haz:()=>haz, startSweep, makeBin, seedHazards, binVesc, spawnVirus, damage, MS:()=>MS, missiles:()=>missiles, pickups:()=>pickups, V, fwd:()=>fwd, right:()=>right, up:()=>up };
 function scanTarget(){
   // nearest hostile by angle from the nose: 'near' inside a wide cone, 'locked' inside the firing cone
   let best = null, bestAng = NEAR_ANG;
@@ -3907,7 +3982,7 @@ function updateNavball(){
   if (S.radarPick) for (const k of pickups) if (k.type !== 'bit') add(k.g.position, PICKUPS[k.type].c);
   if (boss) add(boss.g.position, 0xff2244, true);
   for (const k of rocks) if (k.hp > 0 && k.g.position.distanceToSquared(P.pos) < 260*260) add(k.g.position, 0x9a7448);   // only nearby rocks
-  for (const b of haz.bins) add(b.g.position, 0xa855f7, true, true);   // always on the navball, even beyond radar range
+  for (const b of haz.bins) add(b.g.position, 0xff7a2a, true, true);   // always on the navball, even beyond radar range
   for (const g of haz.grids) add(g.g.position, g.on ? 0xff2a3a : 0x662030);
   if (P.inCloud) for (let j=0;j<i;j++) nbBlips[j].position.copy(randDir());   // static scrambles the navball
   if (P.vel.length() > 6){ // prograde: direction you're drifting
