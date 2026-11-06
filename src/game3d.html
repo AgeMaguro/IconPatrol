@@ -1302,6 +1302,7 @@ function makeCloud(){
   haz.clouds.push({g, r, geo, base:pos.slice()});
 }
 // the Recycle Bin: a black hole that pulls in you, rocks, icons and pickups. Whatever reaches the core is deleted.
+const BIN_RANGE = 650, BIN_CORE = 28, BIN_VIS = 1.6;   // starting size (was range 480, core 18, look 1x)
 function makeBin(){
   const g = new THREE.Group(), rings = [];
   g.add(new THREE.Mesh(new THREE.SphereGeometry(16, 20, 14), basic(0x000000)));
@@ -1309,12 +1310,12 @@ function makeBin(){
   [[30,0x7dd3fc,0.8],[48,0x818cf8,0.55],[72,0xc084fc,0.35],[98,0xa855f7,0.2]].forEach(([r,c,o],i) => {
     const m = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.TorusGeometry(r, 0.8, 3, 64)), new THREE.LineBasicMaterial({color:c, transparent:true, opacity:o}));
     m.rotation.x = Math.PI/2 + (i - 1.5)*0.12; g.add(m); rings.push(m); });
-  const lab = canvasSprite(256, 64, (x, w, h) => {
+  const lab = canvasSprite(300, 64, (x, w, h) => {
     x.strokeStyle = '#c4b5fd'; x.lineWidth = 4; x.strokeRect(14, 14, 28, 38); x.beginPath(); x.moveTo(8, 14); x.lineTo(48, 14); x.moveTo(22, 8); x.lineTo(34, 8); x.stroke();
     x.font = 'bold 30px Consolas,monospace'; x.fillStyle = '#e9d5ff'; x.fillText('RECYCLE BIN', 62, 44); }, 14);
   lab.position.y = 44; g.add(lab);
-  g.position.copy(hazSpot(420, R*0.6)); hazGroup.add(g);
-  haz.bins.push({g, rings, range:480, core:18});
+  g.position.copy(hazSpot(560, R*0.6)); hazGroup.add(g);
+  haz.bins.push({g, rings, range:BIN_RANGE, core:BIN_CORE, mass:0, told:0, vis:BIN_VIS}); g.scale.setScalar(BIN_VIS);
 }
 // packet stream: a lane of fast data blocks. Crossing it hurts; flying along it gives you a speed boost.
 const PK_EDGE = new THREE.EdgesGeometry(new THREE.BoxGeometry(3.4, 3.4, 7));
@@ -1413,22 +1414,40 @@ function updateHazards(dt){
     if (P.alive && P.pos.distanceToSquared(c.g.position) < c.r*c.r) P.inCloud = true;
   }
   if (P.inCloud){ TGT = null; MS.tgt = null; MS.t = 0; MS.locked = false; }   // targeting offline inside the static
-  // Recycle Bin
+  // Recycle Bin: pulls in you, rocks, viruses, icons, pickups and the other hazards. Everything it eats adds mass,
+  // and the Bin grows: its core and look up to 2.2x, its pull range up to 1.5x.
   for (const b of haz.bins){
     b.rings.forEach((m,i) => m.rotation.z += dt*(1.6 - i*0.3));
-    const pull = (pos, mul) => { hzA.copy(b.g.position).sub(pos); const d = hzA.length(); if (d > b.range || d < 0.1) return -1; const k = 1 - d/b.range; hzA.divideScalar(d).multiplyScalar(mul*(8 + 140*k*k*k)); return d; };
+    const gf = 1 + Math.min(1.2, b.mass*0.03);
+    b.range = BIN_RANGE*(1 + Math.min(0.5, b.mass*0.015)); b.core = BIN_CORE*gf;   // reach grows to 1.5x, the core and look to 2.2x
+    b.vis += (BIN_VIS*gf - b.vis)*Math.min(1, dt*2); b.g.scale.setScalar(b.vis);   // grows smoothly
+    const pull = (pos, mul) => { hzA.copy(b.g.position).sub(pos); const d = hzA.length(); if (d > b.range || d < 0.1) return -1; const k = 1 - d/b.range; hzA.divideScalar(d).multiplyScalar(mul*(8 + 150*k*k*k)); return d; };
+    // things without their own velocity (or whose AI keeps resetting it) get a separate drift toward the Bin
+    const drag = (o, pos, mul) => { const d = pull(pos, mul); if (!o.binV) o.binV = V();
+      if (d < 0){ o.binV.multiplyScalar(Math.pow(0.4, dt)); if (o.binV.lengthSq() > 0.01) pos.addScaledVector(o.binV, dt); return -1; }
+      o.binV.addScaledVector(hzA, dt); pos.addScaledVector(o.binV, dt); return d; };
+    const eat = (pos, mass, color, n) => { b.mass += mass; burst(pos, color || '#c084fc', n || 14, 30, 0.6);
+      if (Math.floor(b.mass/6) > b.told){ b.told = Math.floor(b.mass/6); msg('THE RECYCLE BIN GROWS', null, '#e9d5ff'); beep(110,0.4,'sawtooth',0.04,60); } };
     if (P.alive){ const d = pull(P.pos, 1);
       if (d >= 0){ P.vel.addScaledVector(hzA, dt); P.binPull = Math.max(P.binPull, 1 - d/b.range);
         if (d < b.core + 3){
           const out = randDir(); P.pos.copy(b.g.position).addScaledVector(out, b.core + 70); P.vel.copy(out).multiplyScalar(150);
           damage(35); burst(b.g.position, '#c084fc', 50, 70, 1); SFX.boom(); rumble(400, 1); msg('RECYCLED · restored from the Bin', null, '#e9d5ff');
         } } }
-    for (const k of rocks){ if (k.hp <= 0) continue; const d = pull(k.g.position, 1); if (d < 0) continue; k.vel.addScaledVector(hzA, dt); if (d < b.core){ k.hp = 0; burst(k.g.position, '#c084fc', 10, 25, 0.5); } }
+    for (const k of rocks){ if (k.hp <= 0) continue; const d = pull(k.g.position, 1); if (d < 0) continue; k.vel.addScaledVector(hzA, dt); if (d < b.core + k.r*0.5){ k.hp = 0; eat(k.g.position, k.r/8, '#d6a35c'); } }
+    for (const v of viruses){ if (v.hp <= 0) continue; const d = drag(v, v.g.position, 0.9); if (d < 0) continue;
+      if (d < b.core + 6){ v.hp = 0; eat(v.g.position, 1.5, '#e040fb', 20); addScore(10); msg('VIRUS RECYCLED +10', v.g.position, '#e9f'); } }
     for (const ic of icons){ if (ic.dead) continue; const d = pull(ic.g.position, 0.6); if (d < 0) continue; ic.vel.addScaledVector(hzA, dt*3);
-      if (d < b.core + 6){ ic.dead = true; burst(ic.g.position, '#c084fc', 24, 40); SFX.del();
+      if (d < b.core + 6){ ic.dead = true; eat(ic.g.position, 1, '#c084fc', 24); SFX.del();
         if (!ic.infected) addScore(-25); msg('RECYCLED ' + short(ic.f.name) + (ic.infected ? '' : ' −25'), ic.g.position, '#e9d5ff'); } }
-    for (const k of pickups){ const d = pull(k.g.position, 1.2); if (d < 0) continue; k.vel.addScaledVector(hzA, dt*3); if (d < b.core) k.life = 0; }
+    for (const k of pickups){ const d = pull(k.g.position, 1.2); if (d < 0) continue; k.vel.addScaledVector(hzA, dt*3); if (d < b.core){ k.life = 0; b.mass += 0.1; } }
+    // other hazards drift in too and get eaten whole
+    for (const m of haz.mines){ if (m.dead) continue; const d = drag(m, m.base, 0.8); if (d >= 0 && d < b.core + 8){ m.dead = true; hazGroup.remove(m.s); eat(m.base, 2, '#ffd400', 20); } }
+    for (const c of haz.clouds){ if (c.dead) continue; const d = drag(c, c.g.position, 0.35); if (d >= 0) c.g.scale.setScalar(Math.max(0.15, Math.min(1, (d - b.core)/c.r)));   // squeezed as it falls in
+      if (d >= 0 && d < b.core + 4){ c.dead = true; hazGroup.remove(c.g); eat(c.g.position, 5, '#e879f9', 40); } }
+    for (const gr of haz.grids){ if (gr.dead) continue; const d = drag(gr, gr.base, 0.3); if (d >= 0 && d < b.core + gr.half*0.5){ gr.dead = true; hazGroup.remove(gr.g); eat(gr.base, 5, '#ff3040', 40); } }
   }
+  haz.clouds = haz.clouds.filter(c => !c.dead); haz.grids = haz.grids.filter(g => !g.dead);
   // packet streams
   for (const st of haz.streams){
     st.off = (st.off + st.sp*dt) % st.L; st.cd -= dt;

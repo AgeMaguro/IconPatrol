@@ -11,6 +11,9 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.33 - 2026-11-06
+- Recycle Bin is bigger: it starts at 1.6x the size, with pull range 650 (was 480) and core 28 (was 18). It now pulls in and eats viruses, asteroids, pop-up mines, data clouds (squeezed as they fall in) and firewall grids, as well as you, icons and pickups. Everything it eats adds mass and the Bin grows: its look and core go up to 2.2x and its pull range up to 1.5x, with a "THE RECYCLE BIN GROWS" alert. Viruses it eats give +10. Fixed the cut-off "RECYCLE BIN" label.
+
 ## 1.0.32 - 2026-11-06
 - Fixed: on PC the guns always fired straight out of the nose, even while the reticle showed LOCK on the lead point, so shots passed behind crossing targets. Now, while locked, every barrel (wingtip cannons too) converges on the lead point the reticle marks, with a small scatter that tightens with the ship's Auto-aim stat. When not locked, guns still fire straight ahead. Test: a crossing target at 220 m took 0 hits in 3 s before the fix and 11 after (chase and cockpit).
 
