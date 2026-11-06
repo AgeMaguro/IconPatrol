@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('IconApp', {
   version: () => version,
   platform: 'pc',
   toggleFullscreen: () => ipcRenderer.send('toggle-fullscreen'),
+  quit: () => ipcRenderer.send('quit'),
   onUpdateStatus: cb => { listener = cb; if (last) cb(last); },
 });
 let listener = null, last = null;

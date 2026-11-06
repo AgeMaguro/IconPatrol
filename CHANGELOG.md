@@ -11,6 +11,10 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.29 - 2026-11-06
+- PC app: ⏻ Exit button on the title screen (only shows in the PC app).
+- 3D fuel: every ship's tank is 3x bigger (`FUEL_MULT = 3`; the hangar Loadout row shows the new size), and impulse thrusters on an empty tank now give 25% thrust instead of 5%.
+
 ## 1.0.27 - 2026-11-06
 - New: Windows PC app. `IconPatrol-PC.exe` is a portable file in each release with no install; it's an Electron shell in `pc/`, built by the same workflow as the APK. It opens maximized, F11 or Alt+Enter toggles fullscreen, and "Scan a real folder" works. The title screen's ⬆ Check for updates button downloads the new exe, swaps it in and restarts.
 - Game: the update button also appears in the PC app (`body.pcapp`), and the PC bridge pushes update status to the game through `IconApp.onUpdateStatus`.

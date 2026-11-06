@@ -74,6 +74,7 @@
   .appOnly{display:none !important}
   html body.inapp .appOnly{display:revert !important}
   html body.inapp button.appOnly{display:inline-block !important}
+  .pcOnly{display:none !important} html body.pcapp .pcOnly{display:inline-block !important}
   html body.pcapp #updBtn{display:inline-block !important} html body.pcapp #updNote{display:block !important}   /* PC app: updater, folder scan stays */
   #updNote{color:#9cd;font-size:12px;margin:-6px 0 6px}
   #updNote.hot{color:#fbbf24}
@@ -149,6 +150,7 @@
       <button class="alt touchOnly webOnly" id="fsBtn">Fullscreen</button>
       <button class="alt" id="setBtn">⚙ Settings</button>
       <button class="alt appOnly" id="updBtn">⬆ Check for updates</button>
+      <button class="alt pcOnly" id="exitBtn">⏻ Exit</button>
     </div>
     <p class="note appOnly" id="updNote"></p>
     <div class="keys">
@@ -808,6 +810,7 @@ window.__updateStatus = st => {
     a.onclick = e => { e.preventDefault(); IconApp.openUpdateInBrowser(); }; n.appendChild(a);
   }
 };
+if ($('exitBtn')) $('exitBtn').onclick = () => { if (window.IconApp && IconApp.quit) IconApp.quit(); };   // PC app only
 if (window.IconApp && IconApp.onUpdateStatus) IconApp.onUpdateStatus(st => window.__updateStatus(st));   // PC app
 if (window.IconApp){
   $('updBtn').onclick = () => { const st = window.__lastUpdate || {}; if (st.state === 'available' || st.state === 'error') IconApp.installUpdate(); else IconApp.checkForUpdate(true); };

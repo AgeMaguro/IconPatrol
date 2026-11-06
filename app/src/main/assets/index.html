@@ -77,6 +77,7 @@
   .appOnly{display:none !important}
   html body.inapp .appOnly{display:revert !important}
   html body.inapp button.appOnly{display:inline-block !important}
+  .pcOnly{display:none !important} html body.pcapp .pcOnly{display:inline-block !important}
   html body.pcapp #updBtn{display:inline-block !important} html body.pcapp #updNote{display:block !important}   /* PC app: updater, folder scan stays */
   #updNote{color:#9cd;font-size:12px;margin:-6px 0 6px}
   #updNote.hot{color:#fbbf24}
@@ -154,6 +155,7 @@
       <button class="alt touchOnly webOnly" id="fsBtn">Fullscreen</button>
       <button class="alt" id="setBtn">⚙ Settings</button>
       <button class="alt appOnly" id="updBtn">⬆ Check for updates</button>
+      <button class="alt pcOnly" id="exitBtn">⏻ Exit</button>
     </div>
     <p class="note appOnly" id="updNote"></p>
     <div class="keys">
@@ -330,6 +332,7 @@
   .appOnly{display:none !important}
   html body.inapp .appOnly{display:revert !important}
   html body.inapp button.appOnly{display:inline-block !important}
+  .pcOnly{display:none !important} html body.pcapp .pcOnly{display:inline-block !important}
   html body.pcapp #updBtn{display:inline-block !important} html body.pcapp #updNote{display:block !important}   /* PC app: updater, folder scan stays */
   #updNote{color:#9cd;font-size:12px;margin:-6px 0 6px}
   #updNote.hot{color:#fbbf24}
@@ -423,6 +426,7 @@
       <button class="alt touchOnly webOnly" id="fsBtn">Fullscreen</button>
       <button class="alt" id="setBtn">⚙ Settings</button>
       <button class="alt appOnly" id="updBtn">⬆ Check for updates</button>
+      <button class="alt pcOnly" id="exitBtn">⏻ Exit</button>
     </div>
     <p class="note appOnly" id="updNote"></p>
     <div class="cols">
@@ -1103,6 +1107,7 @@ window.__updateStatus = st => {
     a.onclick = e => { e.preventDefault(); IconApp.openUpdateInBrowser(); }; n.appendChild(a);
   }
 };
+if ($('exitBtn')) $('exitBtn').onclick = () => { if (window.IconApp && IconApp.quit) IconApp.quit(); };   // PC app only
 if (window.IconApp && IconApp.onUpdateStatus) IconApp.onUpdateStatus(st => window.__updateStatus(st));   // PC app
 if (window.IconApp){
   $('updBtn').onclick = () => { const st = window.__lastUpdate || {}; if (st.state === 'available' || st.state === 'error') IconApp.installUpdate(); else IconApp.checkForUpdate(true); };
@@ -1781,6 +1786,7 @@ function buildFromFiles(list){
 // ---------- upgrades & pickups ----------
 const G = { state:'title', sectors:[], cur:null, score:0, lives:3, cleared:0, paused:false, bits:0, up:{} };
 // ---------- ship types ----------
+const FUEL_MULT = 3;   // every ship's fuel tank is 3x its listed size (2026-11-06)
 const SHIPS = [
   {id:'patrol', hull:60, ammo:200, fuel:100, msl:4, aim:0.6,  name:'Patrol',  tag:'Balanced all-rounder',      desc:'The standard patrol craft. Even speed, handling, firepower and shields: good at everything, best at nothing.', speed:1,    turn:1,    fire:1,    shield:1,    barrels:0, color:'#77ffff', fill:'#063445'},
   {id:'racer', hull:40, ammo:120, fuel:70, msl:3, aim:0.4,   name:'Racer',   tag:'Very fast and nimble, fragile', desc:"A stripped-down needle. Much faster, with quick, tight handling, but thin shields and light guns. Dodge, don't tank.", speed:1.38, turn:1.35, fire:0.7,  shield:0.6,  barrels:0, color:'#fbbf24', fill:'#3a2a05'},
@@ -1831,7 +1837,7 @@ function stats(){
     magnet: [60,130,200,280][u.magnet], radar: [700,1000,1400][u.radar], radarPick: u.radar > 0,
     maxHull: Math.round(sd.hull*[1,1.1,1.2,1.35][u.shield]), hullFix: [0,10,20,30][u.regen],
     maxAmmo: Math.round(sd.ammo*[1,1.15,1.3,1.5][u.blaster]),
-    maxFuel: Math.round(sd.fuel*[1,1.15,1.3,1.5][u.tank]), burn: [1.6,1.45,1.3,1.15][u.engine],   // fuel per second at full throttle
+    maxFuel: Math.round(sd.fuel*FUEL_MULT*[1,1.15,1.3,1.5][u.tank]), burn: [1.6,1.45,1.3,1.15][u.engine],   // fuel per second at full throttle
     maxMsl: sd.msl + u.radar, mslRange: [600,750,900][u.radar],
   };
 }
@@ -1997,7 +2003,7 @@ function renderHangar(){
   $('shipName').textContent = sd.name; $('shipName').style.color = sd.color; $('shipTag').textContent = sd.tag; $('shipDesc').textContent = sd.desc;
   $('shipStats').innerHTML = STAT_ROWS.map(([lab, k]) => `<div class="statrow"><span>${lab}</span><div class="statbar"><i style="width:${Math.min(100, sd[k]/1.7*100)}%;background:${sd[k] > 1.05 ? '#4ade80' : sd[k] < 0.95 ? '#f87171' : '#5ff'}"></i></div><span class="v">${Math.round(sd[k]*100)}%</span></div>`).join('')
     + (sd.barrels ? '<div class="statrow"><span>Bonus</span><span style="grid-column:2/4;color:#fde68a">Starts with twin shots (Multi-Barrel level 1)</span></div>' : '')
-    + (typeof THREE !== 'undefined' ? `<div class="statrow"><span>Loadout</span><span style="grid-column:2/4;color:#cfeaff">Hull ${sd.hull} · Ammo ${sd.ammo} · Fuel ${sd.fuel} · Missiles ${sd.msl}</span></div>` : '')
+    + (typeof THREE !== 'undefined' ? `<div class="statrow"><span>Loadout</span><span style="grid-column:2/4;color:#cfeaff">Hull ${sd.hull} · Ammo ${sd.ammo} · Fuel ${sd.fuel*FUEL_MULT} · Missiles ${sd.msl}</span></div>` : '')
     + (typeof THREE !== 'undefined' ? `<div class="statrow"><span>Auto-aim</span><div class="statbar"><i style="width:${sd.aim*100}%;background:#ffd400"></i></div><span class="v">${Math.round(sd.aim*100)}%</span></div>` : '')
     + (sd.volley ? '<div class="statrow"><span>Guns</span><span style="grid-column:2/4;color:#fde68a">Twin wingtip volley, half fire rate</span></div>' : '')
     + (sd.wide ? '<div class="statrow"><span>Bonus</span><span style="grid-column:2/4;color:#fde68a">Built-in scatter shot (never runs out; 75% damage, 75% range)</span></div>' : '');
@@ -2392,7 +2398,7 @@ function buildFromPicked(list){
 })();
 
 // ---------- throttle lever ----------
-let throttle = 0, effThr = 0; const REDLINE = 1.7, LEVER_100 = 0.76; const IMPULSE = 0.05;   // thrust left when the fuel tank is empty
+let throttle = 0, effThr = 0; const REDLINE = 1.7, LEVER_100 = 0.76; const IMPULSE = 0.25;   // thrust left when the fuel tank is empty
 const leverVal = f => f <= LEVER_100 ? f/LEVER_100 : 1 + (f-LEVER_100)/(1-LEVER_100)*(REDLINE-1);
 const leverFrac = v => v <= 1 ? v*LEVER_100 : LEVER_100 + (v-1)/(REDLINE-1)*(1-LEVER_100);
 (function(){
@@ -2494,6 +2500,7 @@ window.__updateStatus = st => {
     a.onclick = e => { e.preventDefault(); IconApp.openUpdateInBrowser(); }; n.appendChild(a);
   }
 };
+if ($('exitBtn')) $('exitBtn').onclick = () => { if (window.IconApp && IconApp.quit) IconApp.quit(); };   // PC app only
 if (window.IconApp && IconApp.onUpdateStatus) IconApp.onUpdateStatus(st => window.__updateStatus(st));   // PC app
 if (window.IconApp){
   $('updBtn').onclick = () => { const st = window.__lastUpdate || {}; if (st.state === 'available' || st.state === 'error') IconApp.installUpdate(); else IconApp.checkForUpdate(true); };
@@ -2792,9 +2799,9 @@ function update(dt){
     const holdBoost = !!(keys.boost || pad.boost);
     let want = holdBoost ? REDLINE : throttle;
     if (want > 1 && P.boost <= 0) want = 1;                    // redline needs boost
-    // out of fuel: main engine off, impulse thrusters still push at up to IMPULSE (5%) of normal thrust, no boost
+    // out of fuel: main engine off, impulse thrusters still push at up to IMPULSE (25%) of normal thrust, no boost
     P.impulse = P.fuel <= 0 && !INF();
-    if (P.impulse){ want = Math.min(1, want)*IMPULSE; if (!P.warned.fuel){ P.warned.fuel = true; toast('FUEL EMPTY · impulse thrusters only (5% thrust). Grab a fuel cell.'); } } else P.warned.fuel = false;
+    if (P.impulse){ want = Math.min(1, want)*IMPULSE; if (!P.warned.fuel){ P.warned.fuel = true; toast('FUEL EMPTY · impulse thrusters only (25% thrust). Grab a fuel cell.'); } } else P.warned.fuel = false;
     effThr = want;
     P.boosting = want > 1.02;
     P.thrust = want > (P.impulse ? 0.005 : 0.03);

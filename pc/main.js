@@ -108,5 +108,6 @@ function install() {
 ipcMain.on('upd-check', (e, userAsked) => check(!!userAsked));
 ipcMain.on('upd-install', () => install());
 ipcMain.on('upd-browser', () => shell.openExternal(`https://github.com/${REPO}/releases/latest/download/${ASSET}`));
+ipcMain.on('quit', () => app.quit());
 ipcMain.on('toggle-fullscreen', () => { if (win) win.setFullScreen(!win.isFullScreen()); });
 ipcMain.on('sync-version', e => { e.returnValue = app.getVersion(); });
