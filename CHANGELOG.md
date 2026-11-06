@@ -11,6 +11,11 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.30 - 2026-11-06
+- 3D arena is bigger: radius 1600, up from 1000, with more scenery cubes and data rings. Background stars are dimmer and smaller.
+- New hazard, asteroids: 50 lumpy amber wireframe rocks drift and spin through every sector and free flight, but not the boss arena. Hitting one bounces you off and chips your shield, harder the faster you hit (no damage in free flight). Redline boost smashes small ones. Shots break them, big rocks split into smaller ones, and small ones sometimes drop a bit. They block enemy fire, so they work as cover. Nearby rocks (within 260 m) show on the navball as brown dots, and the field slowly refills out of sight.
+- Fixed: the chase-view FUEL bar grew 3x long after the fuel change. Its width is now capped.
+
 ## 1.0.29 - 2026-11-06
 - PC app: ⏻ Exit button on the title screen (only shows in the PC app).
 - 3D fuel: every ship's tank is 3x bigger (`FUEL_MULT = 3`; the hangar Loadout row shows the new size), and impulse thrusters on an empty tank now give 25% thrust instead of 5%.

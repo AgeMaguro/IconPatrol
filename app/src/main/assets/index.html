@@ -1652,7 +1652,7 @@ renderer.setPixelRatio(DPR);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x03040c);
 scene.fog = new THREE.FogExp2(0x03040c, 0.0011);
-const camera = new THREE.PerspectiveCamera(72, W/H, 0.5, 6000);
+const camera = new THREE.PerspectiveCamera(72, W/H, 0.5, 7000);
 function applyRenderScale(){
   const budget = Math.sqrt(PIX_BUDGET/(W*H));
   const g = Math.max(0.5, Math.min(DPR, budget) * RSCALE);
@@ -1865,7 +1865,7 @@ function randPickup(){ let tot = 0; for (const k in PICKUPS) tot += PICKUPS[k].w
 
 // ---------- 3D helpers ----------
 const V = (x=0,y=0,z=0) => new THREE.Vector3(x,y,z);
-const R = 1000; // arena radius (was 480)
+const R = 1600; // arena radius (was 480, then 1000)
 function randInSphere(r){ const v = V(); do { v.set(Math.random()*2-1, Math.random()*2-1, Math.random()*2-1); } while (v.lengthSq() > 1 || v.lengthSq() < 0.01); return v.multiplyScalar(r); }
 function randDir(){ return randInSphere(1).normalize(); }
 function glowTex(){ const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32,32,0,32,32,32); gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.25,'rgba(255,255,255,.55)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c); }
@@ -1879,21 +1879,21 @@ const basic = (c, o={}) => new THREE.MeshBasicMaterial(Object.assign({color:c}, 
 // environment
 (function buildEnv(){
   const n = 2500, pos = new Float32Array(n*3);
-  for (let i=0;i<n;i++){ const d = randDir().multiplyScalar(2600 + Math.random()*1800); pos.set([d.x,d.y,d.z], i*3); }
+  for (let i=0;i<n;i++){ const d = randDir().multiplyScalar(3300 + Math.random()*2000); pos.set([d.x,d.y,d.z], i*3); }
   const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos,3));
-  scene.add(new THREE.Points(sg, new THREE.PointsMaterial({color:0x9fdfff, size:2.2, sizeAttenuation:false, fog:false, transparent:true, opacity:0.8})));
+  scene.add(new THREE.Points(sg, new THREE.PointsMaterial({color:0x7fb8d6, size:1.8, sizeAttenuation:false, fog:false, transparent:true, opacity:0.42})));
   const shell = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(R+40, 3)), new THREE.LineBasicMaterial({color:0x0b6f94, transparent:true, opacity:0.35}));
   scene.add(shell);
   const cubeEdges = new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1));
   const cubeMats = [new THREE.LineBasicMaterial({color:0x7a3cff, transparent:true, opacity:0.45}), new THREE.LineBasicMaterial({color:0x1aa7d6, transparent:true, opacity:0.45})];
-  for (let i=0;i<190;i++){
+  for (let i=0;i<320;i++){
     const m = new THREE.LineSegments(cubeEdges, cubeMats[Math.random()<0.25 ? 0 : 1]);
     const s = 8 + Math.random()*(Math.random()<0.15 ? 120 : 45); m.scale.set(s, s*(0.5+Math.random()*2), s);
     m.position.copy(randInSphere(R*0.95)); m.rotation.set(Math.random()*3, Math.random()*3, Math.random()*3);
     scene.add(m);
   }
   // data rings
-  for (let i=0;i<16;i++){
+  for (let i=0;i<26;i++){
     const ring = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.TorusGeometry(60+Math.random()*160, 0.6, 3, 48)), new THREE.LineBasicMaterial({color:0x22d3ee, transparent:true, opacity:0.25}));
     ring.position.copy(randInSphere(R*0.7)); ring.lookAt(randInSphere(R)); scene.add(ring);
   }
@@ -1980,6 +1980,7 @@ function resetField(){
   MS.tgt = null; MS.t = 0; MS.locked = false; MS.cool = 0; MS.prev = false; P.warned = {};
   waveNo = 0; virusT = 2.5; cacheT = 12 + Math.random()*6; gateSm.coast = gateSm.ghost = null; throttle = 0; mouse.dx = mouse.dy = mouse.sx = mouse.sy = 0; effThr = 0; TGT = null; wasLocked = false; CK.x = CK.y = CK.r = 0;
   ship.position.copy(P.pos); ship.quaternion.copy(P.q); camera.position.copy(P.pos).add(V(0,4,16)); camera.quaternion.copy(P.q);
+  seedRocks();
 }
 function gateNeed(){ return Math.min(5, G.sectors.length); }
 
@@ -2518,6 +2519,80 @@ $('pQuit').onclick = () => { G.paused = false; timers = []; showTitle(); };
 $('againBtn').onclick = showTitle;
 
 // ---------- gameplay ----------
+// ---------- asteroids: drifting rocks that bounce you around and chip your shield (2026-11-06) ----------
+// Bullets (yours and enemy fire) stop on them, so they work as cover. Shooting one breaks it; big ones split.
+// Redline boost smashes small ones. Free flight: they still bounce you but do no damage (damage() rule).
+const ROCK_COUNT = 50, ROCK_EDGE = new THREE.LineBasicMaterial({color:0xd6a35c, transparent:true, opacity:0.8});
+const ROCK_FILL = new THREE.MeshBasicMaterial({color:0x08060a, transparent:true, opacity:0.9});
+let rocks = [], rockT = 0;
+function rockGeo(r){
+  const g = new THREE.IcosahedronGeometry(1, r > 18 ? 1 : 0), p = g.attributes.position, seen = new Map();
+  for (let i=0;i<p.count;i++){   // lumpy: push each corner in or out (shared corners move together)
+    const key = p.getX(i).toFixed(3)+','+p.getY(i).toFixed(3)+','+p.getZ(i).toFixed(3);
+    let k = seen.get(key); if (k === undefined){ k = 0.7 + Math.random()*0.55; seen.set(key, k); }
+    p.setXYZ(i, p.getX(i)*k, p.getY(i)*k, p.getZ(i)*k);
+  }
+  return g;
+}
+function spawnRock(at, r, vel){
+  const geo = rockGeo(r), edges = new THREE.EdgesGeometry(geo, 1), g = new THREE.Group();
+  g.add(new THREE.Mesh(geo, ROCK_FILL), new THREE.LineSegments(edges, ROCK_EDGE));
+  g.scale.set(r, r*(0.75 + Math.random()*0.4), r); g.position.copy(at); g.rotation.set(Math.random()*6, Math.random()*6, Math.random()*6); scene.add(g);
+  const sp = (r < 12 ? 6 : 3) + Math.random()*(r < 12 ? 14 : 8);
+  rocks.push({g, r, geo, edges, vel: vel || randDir().multiplyScalar(sp), spin: V((Math.random()-.5)*0.9, (Math.random()-.5)*0.9, (Math.random()-.5)*0.9), hp: Math.ceil(r/3.5)});
+}
+function dropRock(k){ scene.remove(k.g); k.geo.dispose(); k.edges.dispose(); }
+function rockSpot(minD){ let p, t = 0; do { p = randInSphere(R*0.92); t++; } while (P && p.distanceTo(P.pos) < minD && t < 40); return p; }
+function newRock(minD){ const big = Math.random() < 0.22; spawnRock(rockSpot(minD), big ? 22 + Math.random()*24 : 4 + Math.random()*11); }
+function seedRocks(){
+  for (const k of rocks) dropRock(k); rocks = []; rockT = 0;
+  if (G.cur && G.cur.boss) return;   // the boss arena stays clear
+  for (let i=0;i<ROCK_COUNT;i++) newRock(160);
+}
+function breakRock(k){
+  if (k.hp < -50) return; k.hp = -99;
+  burst(k.g.position, '#d6a35c', Math.min(40, 8 + k.r*1.2), 25 + k.r, 0.9); SFX.boom(); addScore(Math.max(1, Math.round(k.r/4)));
+  if (k.r >= 12){
+    const n = k.r > 28 ? 3 : 2;
+    for (let i=0;i<n;i++){ const d = randDir(); spawnRock(_t2.copy(k.g.position).addScaledVector(d, k.r*0.45), k.r*0.5, d.multiplyScalar(6 + Math.random()*12).add(k.vel)); }
+  } else if (Math.random() < 0.3) dropAt(k.g.position, 1, 0.12);
+}
+function updateRocks(dt){
+  P.rockCd = Math.max(0, (P.rockCd || 0) - dt);
+  for (const k of rocks){
+    if (k.hp <= 0) continue;
+    const kp = k.g.position;
+    kp.addScaledVector(k.vel, dt); k.g.rotation.x += k.spin.x*dt; k.g.rotation.y += k.spin.y*dt; k.g.rotation.z += k.spin.z*dt;
+    const d = kp.length(); if (d > R - k.r){ const vn = k.vel.dot(_t.copy(kp).divideScalar(d)); if (vn > 0) k.vel.addScaledVector(_t, -2*vn); }   // bounce off the sector shell
+    if (!P.alive) continue;
+    const rr = k.r*0.85 + 3.5, dd = kp.distanceToSquared(P.pos);
+    if (dd >= rr*rr) continue;
+    const n = _t2.copy(P.pos).sub(kp).divideScalar(Math.sqrt(dd) || 1);
+    P.pos.copy(kp).addScaledVector(n, rr + 0.2);   // push the ship back out of the rock
+    const vn = _t.copy(P.vel).sub(k.vel).dot(n);
+    if (vn >= 0) continue;
+    P.vel.addScaledVector(n, -vn*1.5);             // bounce, losing some speed
+    if (k.r < 20) k.vel.addScaledVector(n, vn*0.5*(10/k.r));   // small rocks get knocked away
+    const hit = -vn;
+    if (hit > 6 && P.rockCd <= 0){
+      P.rockCd = 0.35; rumble(160, Math.min(1, hit/60)); burst(_t.copy(P.pos).addScaledVector(n, -3), '#fc8', 10, 25, 0.4);
+      if (P.boosting && k.r < 14){ breakRock(k); msg('SMASHED', kp, '#fc8'); }
+      else { SFX.hit(); damage(Math.min(45, Math.round(4 + hit*0.3*(k.r > 20 ? 1.3 : 1)))); }
+    }
+  }
+  rocks = rocks.filter(k => { if (k.hp <= 0){ dropRock(k); return false; } return true; });
+  // the field slowly refills, out of sight
+  if (!(G.cur && G.cur.boss) && rocks.length < ROCK_COUNT*0.7){ rockT -= dt; if (rockT <= 0){ rockT = 3; newRock(500); } }
+}
+function rockBlocks(b){   // any bullet that hits a rock stops there
+  const bp = b.g.position;
+  for (const k of rocks){ if (k.hp > 0 && bp.distanceToSquared(k.g.position) < k.r*k.r*0.75){
+    b.life = 0; burst(bp, '#fc8', 3, 15, 0.25);
+    if (!b.enemy){ k.hp -= b.dmg || 1; if (k.hp <= 0) breakRock(k); }
+    return true; } }
+  return false;
+}
+
 function damage(n){
   if (G.cur && G.cur.free) return;   // free flight: no damage
   if (!P.alive || P.inv > 0 || P.pw.firewall > 0) return;
@@ -2707,7 +2782,7 @@ function drawGates(gates, isGhost, fade, ap, use){
   }
 }
 const _pp = V(), _pv = V(), _pf = V(), _pr = V(), _pu = V(), _pc = V(), _pq = new THREE.Quaternion(), _pdq = new THREE.Quaternion(), _pe = new THREE.Euler();
-if (window.__IPDEBUG) window.__ip = { startBoss:()=>startBoss(), boss:()=>boss, aim:()=>({TGT, aimHit}), icons:()=>icons, S:()=>S, mouse:()=>mouse, G:()=>G, P:()=>P, viruses:()=>viruses, bullets:()=>bullets, spawnVirus, damage, MS:()=>MS, missiles:()=>missiles, pickups:()=>pickups, V, fwd:()=>fwd, right:()=>right, up:()=>up };
+if (window.__IPDEBUG) window.__ip = { startBoss:()=>startBoss(), boss:()=>boss, aim:()=>({TGT, aimHit}), icons:()=>icons, S:()=>S, mouse:()=>mouse, G:()=>G, P:()=>P, viruses:()=>viruses, bullets:()=>bullets, rocks:()=>rocks, spawnVirus, damage, MS:()=>MS, missiles:()=>missiles, pickups:()=>pickups, V, fwd:()=>fwd, right:()=>right, up:()=>up };
 function scanTarget(){
   // nearest hostile by angle from the nose: 'near' inside a wide cone, 'locked' inside the firing cone
   let best = null, bestAng = NEAR_ANG;
@@ -2894,6 +2969,8 @@ function update(dt){
 
   // ---- bullets ----
   for (const b of bullets){ b.g.position.addScaledVector(b.vel, dt); b.life -= dt; if (b.g.position.lengthSq() > (R+80)*(R+80)) b.life = 0; }
+  updateRocks(dt);
+  for (const b of bullets) if (b.life > 0) rockBlocks(b);
 
   updateMissiles(dt);
   // ---- virus spawning ----
@@ -3468,7 +3545,7 @@ function drawHUD(t){
   mini(48, hlw, hl, '#1b2a0a', hl > 0.5 ? '#a3e635' : hl > 0.3 ? '#fc4' : '#f45', 'HULL');
   const tw = 140 * S.tank/100;
   mini(58, tw, P.boost/S.tank, '#2a1f08', P.boosting ? '#fff' : '#fbbf24', 'BOOST');
-  const fw2 = 140 * S.maxFuel/100;
+  const fw2 = Math.min(200, 140 * S.maxFuel/(100*FUEL_MULT));   // grows with tank upgrades, capped
   mini(68, fw2, inf ? 1 : P.fuel/S.maxFuel, '#082a33', !inf && P.fuel/S.maxFuel < 0.25 ? '#f45' : '#22d3ee', inf ? 'FUEL ∞' : 'FUEL');
   hx.font = 'bold 13px Consolas,monospace'; hx.fillStyle = !inf && P.ammo < S.maxAmmo*0.15 ? '#fc4' : '#9ff';
   hx.fillText(inf ? 'AMMO ∞   MSL ∞' : `AMMO ${P.ammo}   MSL ${P.msl}`, 16, 90);
@@ -3537,6 +3614,7 @@ function updateNavball(){
   for (const v of viruses) add(v.g.position, 0xe040fb);
   if (S.radarPick) for (const k of pickups) if (k.type !== 'bit') add(k.g.position, PICKUPS[k.type].c);
   if (boss) add(boss.g.position, 0xff2244, true);
+  for (const k of rocks) if (k.hp > 0 && k.g.position.distanceToSquared(P.pos) < 260*260) add(k.g.position, 0x9a7448);   // only nearby rocks
   if (P.vel.length() > 6){ // prograde: direction you're drifting
     _t.copy(P.vel).normalize().applyQuaternion(qInv);
     const s = nbBlip(i++); s.visible = true; s.position.copy(_t);
