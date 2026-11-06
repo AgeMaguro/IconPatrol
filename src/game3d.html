@@ -1818,8 +1818,15 @@ function update(dt){
     const autoOn = TC.used && TC.auto; if (autoOn) aimDir(P.pos, fwd);
     if ((keys.fire || pad.fire || mouse.fire || TC.fire || (autoOn && aimHit)) && P.cool <= 0){
       P.cool = S.cool * (P.pw.rapid > 0 ? 0.5 : 1) * (shipDef().volley ? 2 : 1);
-      // guns are fixed to the ship: straight out of the nose (touch keeps a light assist for auto-fire)
-      const base = TC.used ? aimDir(P.pos, fwd) : (aimDir(P.pos, fwd), fwd.clone());
+      // guns fire straight out of the nose, except while the reticle shows LOCK: then they converge on the lead
+      // point (where the reticle sits), with a little scatter that shrinks with the ship's Auto-aim stat.
+      // Touch keeps its light assist for auto-fire when not locked.
+      const gunLock = !!(TGT && TGT.locked);
+      let base;
+      if (gunLock){ const tt = TGT.d/520, acc = shipDef().aim || 0.6;
+        base = _t.copy(TGT.pos).addScaledVector(TGT.vel, tt).addScaledVector(P.vel, -tt).sub(P.pos).normalize().clone();
+        base.addScaledVector(randDir(), (1 - acc)*0.02).normalize(); aimDir(P.pos, fwd); }
+      else base = TC.used ? aimDir(P.pos, fwd) : (aimDir(P.pos, fwd), fwd.clone());
       let shots = S.barrel === 0 ? [[0,0,0]] : S.barrel === 1 ? [[0,0,-1.8],[0,0,1.8]] : [[0.05,0,-1.8],[-0.05,0,1.8],[0,0.05,0],[0,-0.05,0]];
       // Fighter: every barrel fires from both wingtip cannons at once (one volley)
       if (shipDef().volley) shots = shots.flatMap(([dy, dp, off]) => [[dy, dp, -5.1 + off*0.4], [dy, dp, 5.1 + off*0.4]]);
@@ -1843,12 +1850,13 @@ function update(dt){
           // wing guns under the cockpit (single gun alternates sides), boresighted to meet 320m straight ahead of the nose
           const side = off === 0 ? P.gunSide*4.6 : Math.sign(off)*4.6 + off*0.4;
           _muz.copy(P.pos).addScaledVector(fwd, 7).addScaledVector(up, -3.2).addScaledVector(right, side);
-          _aimPt.copy(P.pos).addScaledVector(base, TC.used ? aimDist : 320);
+          _aimPt.copy(P.pos).addScaledVector(base, gunLock ? TGT.d : TC.used ? aimDist : 320);
           d = _aimPt.sub(_muz).normalize().addScaledVector(right, -dy).addScaledVector(up, dp).normalize().clone();
           g.position.copy(_muz);
         } else {
-          d = base.clone().addScaledVector(right, -dy).addScaledVector(up, dp).normalize();
           g.position.copy(P.pos).addScaledVector(fwd, 5).addScaledVector(right, off);
+          // locked: each barrel (wingtips too) converges on the lead point instead of firing parallel
+          d = (gunLock ? _aimPt.copy(P.pos).addScaledVector(base, TGT.d).sub(g.position).normalize().clone() : base.clone()).addScaledVector(right, -dy).addScaledVector(up, dp).normalize();
         }
         scene.add(g);
         d.addScaledVector(randDir(), 0.006).normalize();

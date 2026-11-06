@@ -11,6 +11,9 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.32 - 2026-11-06
+- Fixed: on PC the guns always fired straight out of the nose, even while the reticle showed LOCK on the lead point, so shots passed behind crossing targets. Now, while locked, every barrel (wingtip cannons too) converges on the lead point the reticle marks, with a small scatter that tightens with the ship's Auto-aim stat. When not locked, guns still fire straight ahead. Test: a crossing target at 220 m took 0 hits in 3 s before the fix and 11 after (chase and cockpit).
+
 ## 1.0.31 - 2026-11-06
 - New 3D hazards in every sector and free flight (none in the boss arena):
   - **Firewall grids:** red laser sheets that slide back and forth. They're on for 4 s and off for 1.5 s, and flicker just before switching back on. Flying into a live one stops you and costs 16 shield. Pass while it's off.
