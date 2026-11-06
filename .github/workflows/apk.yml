@@ -52,6 +52,7 @@ jobs:
           npm pkg set version=1.0.$VC
           npx electron-builder --win portable --x64 --publish never 2>&1 | tee -a ../build-output.txt
           cp dist/IconPatrol-PC.exe ../IconPatrol-PC.exe
+          git checkout -- package.json   # version bump is build-only; keep the tree clean for the archive commit
       - name: Publish release (old APK moves to past-versions/)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -73,7 +74,7 @@ jobs:
             git add past-versions
             if ! git diff --cached --quiet; then
               git commit -m "Archive version $prev in past-versions"
-              git pull --rebase origin main && git push origin HEAD:main
+              git pull --rebase --autostash origin main && git push origin HEAD:main
             fi
           fi
       - name: Report failure
