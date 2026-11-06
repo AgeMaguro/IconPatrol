@@ -11,6 +11,9 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.35 - 2026-11-06
+- PC app checks for updates at launch. A small "ICON PATROL · Checking for updates…" window opens first. If there's a newer release, it downloads with a progress bar, swaps the new exe in and restarts, and the game only opens once you're on the new version. With no update it opens the game right away. Offline, it starts after a short note; with no answer from GitHub, it gives up after 8 s and starts anyway. If the update fails, it says so and opens the game. The ⬆ button on the title screen still works for checking by hand.
+
 ## 1.0.34 - 2026-11-06
 - Fixed: the Recycle Bin often seemed missing. It only spawned in some sectors (a 70% roll that came up less often in testing), and when it did it was usually 900-1300 m away, past the 700 m radar and lost in the fog. Now every sector and free flight gets one, 500-850 m from you. It shows through the fog, always sits on the navball (pinned to the edge when out of radar range), and has a "RECYCLE BIN · 600m" distance label.
 
