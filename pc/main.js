@@ -15,6 +15,15 @@ const REPO = 'AgeMaguro/IconPatrol';
 const ASSET = 'IconPatrol-PC.exe';
 const STARTUP_CHECK_TIMEOUT = 8000;    // ms to wait for GitHub before opening the game anyway
 let win = null, splash = null, pending = null;   // pending = {latest, url} once an update is found
+// small log for troubleshooting updates: %APPDATA%\Icon Patrol\update-log.txt (last ~200 lines)
+function ulog(line) {
+  try {
+    const f = path.join(app.getPath('userData'), 'update-log.txt'), stamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    let old = ''; try { old = fs.readFileSync(f, 'utf8'); } catch (_) {}
+    const lines = (old + `${stamp}  v${app.getVersion()}  ${line}\n`).split('\n').slice(-200);
+    fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, lines.join('\n'));
+  } catch (_) {}
+}
 
 // one copy at a time
 if (!app.requestSingleInstanceLock()) { app.quit(); }
@@ -74,18 +83,27 @@ function openGame() { if (gameOpened) return; gameOpened = true; createWindow();
 app.whenReady().then(async () => {
   await openSplash();
   // a dev run (npm start) can't replace itself, so it skips straight to the game
-  if (!process.env.PORTABLE_EXECUTABLE_FILE) { splashSay('Starting…'); return setTimeout(openGame, 300); }
+  if (!process.env.PORTABLE_EXECUTABLE_FILE) { ulog('launch: dev run, no update check'); splashSay('Starting…'); return setTimeout(openGame, 300); }
+  ulog('launch: checking for updates (' + process.env.PORTABLE_EXECUTABLE_FILE + ')');
   let decided = false;
-  const timer = setTimeout(() => { if (!decided){ decided = true; splashSay('Update check timed out, starting…'); openGame(); } }, STARTUP_CHECK_TIMEOUT);
+  const timer = setTimeout(() => { if (!decided){ decided = true; ulog('launch: no answer in ' + STARTUP_CHECK_TIMEOUT/1000 + ' s, starting'); splashSay('No answer from GitHub, starting…'); setTimeout(openGame, 900); } }, STARTUP_CHECK_TIMEOUT);
   fetchLatest((err, info) => {
     if (decided) return; decided = true; clearTimeout(timer);
-    if (err || !info.newer) { splashSay(err ? 'Offline, starting…' : 'Up to date, starting…'); return openGame(); }
+    const me = app.getVersion();
+    if (err){
+      ulog('launch: check failed: ' + err.message);
+      // 404 = the release is being rebuilt right now (CI swaps it); anything else = no internet or GitHub trouble
+      splashSay(/404/.test(err.message) ? `v${me} · a new release is being built, starting…` : `Couldn't reach GitHub (${err.message}), starting v${me}…`);
+      return setTimeout(openGame, 1200);
+    }
+    if (!info.newer){ ulog('launch: up to date (latest ' + info.latest + ')'); splashSay(`Up to date · v${me} is the latest, starting…`); return setTimeout(openGame, 700); }
+    ulog('launch: update found ' + me + ' -> ' + info.latest);
     pending = info;
     splashSay(`Updating to ${info.latest}…`, 0);
     install({
       progress: pct => splashSay(pct >= 0 ? `Downloading ${info.latest}… ${pct}%` : `Downloading ${info.latest}…`, pct >= 0 ? pct : null),
-      done: () => splashSay('Update installed, restarting…', 100),
-      fail: msg => { splashSay('Update failed (' + msg + '), starting…'); setTimeout(openGame, 1500); },
+      done: () => { ulog('launch: downloaded ' + info.latest + ', swapping in and restarting'); splashSay(`Installed ${info.latest}, restarting…`, 100); },
+      fail: msg => { ulog('launch: update failed: ' + msg); splashSay('Update failed (' + msg + '), starting…'); setTimeout(openGame, 1500); },
     });
   });
 });
@@ -126,6 +144,7 @@ function fetchLatest(cb) {
 function check(userAsked) {
   status({ state: 'checking' });
   fetchLatest((err, info) => {
+    ulog('button: ' + (err ? 'check failed: ' + err.message : info.newer ? 'update found ' + info.latest : 'up to date (latest ' + info.latest + ')'));
     if (err) return status({ state: userAsked ? 'error' : 'idle', msg: err.message });
     if (info.newer) { pending = info; status({ state: 'available', latest: info.latest }); }
     else status({ state: 'current', latest: info.latest });

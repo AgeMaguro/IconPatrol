@@ -11,6 +11,10 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.37 - 2026-11-06
+- PC app launch check is clearer. The splash now says "Up to date · v1.0.37 is the latest", "a new release is being built" (while CI swaps the release, which used to read "Offline"), "Couldn't reach GitHub (reason)" or "No answer from GitHub", and stays up long enough to read. Every check (launch and ⬆ button) is logged to %APPDATA%\Icon Patrol\update-log.txt for troubleshooting.
+- Note: 1.0.35's launch check worked as designed; it ran before 1.0.36 had finished building, so it correctly found nothing newer.
+
 ## 1.0.36 - 2026-11-06
 - Recycle Bin now looks like a real black hole: a black shadow, a spinning accretion disk of hot orange streaks, the gravitationally lensed far side of the disk wrapping up over and under the shadow (it always faces you and spins), a thin photon ring and a faint wireframe edge. The navball dot and labels are orange to match.
 - Event horizon: the Bin has a Schwarzschild radius r_s, 2.6x its core. Past it, all outward motion is cancelled and nothing escapes, boost included. In sectors, falling into the core deletes your ship (one life) and you respawn safely outside the well. In free flight it still spits you back out.
