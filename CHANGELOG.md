@@ -11,6 +11,10 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.27 - 2026-11-06
+- New: Windows PC app. `IconPatrol-PC.exe` is a portable file in each release with no install; it's an Electron shell in `pc/`, built by the same workflow as the APK. It opens maximized, F11 or Alt+Enter toggles fullscreen, and "Scan a real folder" works. The title screen's ⬆ Check for updates button downloads the new exe, swaps it in and restarts.
+- Game: the update button also appears in the PC app (`body.pcapp`), and the PC bridge pushes update status to the game through `IconApp.onUpdateStatus`.
+
 ## 1.0.26 - 2026-11-04
 - 3D: running out of fuel no longer strands you. The main engine cuts out and impulse thrusters take over at up to 5% of normal thrust (throttle still scales it; about 5% of top speed). No boost and no boost recharge until you grab a fuel cell. The engine glow turns blue, and the warnings read "FUEL EMPTY · IMPULSE".
 

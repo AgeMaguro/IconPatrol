@@ -1,0 +1,38 @@
+{
+  "name": "icon-patrol",
+  "productName": "Icon Patrol",
+  "version": "1.0.40",
+  "description": "Icon Patrol for Windows",
+  "author": "AgeMaguro",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable --x64"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "com.agemaguro.iconpatrol",
+    "productName": "Icon Patrol",
+    "files": [
+      "main.js",
+      "preload.js",
+      "icon.png",
+      "game/**"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "icon": "icon.png",
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "IconPatrol-PC.exe"
+    }
+  }
+}

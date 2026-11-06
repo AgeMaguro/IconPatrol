@@ -80,6 +80,7 @@
   .appOnly{display:none !important}
   html body.inapp .appOnly{display:revert !important}
   html body.inapp button.appOnly{display:inline-block !important}
+  html body.pcapp #updBtn{display:inline-block !important} html body.pcapp #updNote{display:block !important}   /* PC app: updater, folder scan stays */
   #updNote{color:#9cd;font-size:12px;margin:-6px 0 6px}
   #updNote.hot{color:#fbbf24}
   #updBtn.hot{background:#fbbf24;color:#231;border-color:#fbbf24;box-shadow:0 0 14px #fbbf2488}
@@ -1164,6 +1165,7 @@ window.__updateStatus = st => {
     a.onclick = e => { e.preventDefault(); IconApp.openUpdateInBrowser(); }; n.appendChild(a);
   }
 };
+if (window.IconApp && IconApp.onUpdateStatus) IconApp.onUpdateStatus(st => window.__updateStatus(st));   // PC app
 if (window.IconApp){
   $('updBtn').onclick = () => { const st = window.__lastUpdate || {}; if (st.state === 'available' || st.state === 'error') IconApp.installUpdate(); else IconApp.checkForUpdate(true); };
   if (window.__lastUpdate) window.__updateStatus(window.__lastUpdate);

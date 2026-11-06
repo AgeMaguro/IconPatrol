@@ -1,5 +1,6 @@
-# Builds the Icon Patrol Android app and publishes IconPatrol.apk as the newest GitHub release.
-# Stable download link: https://github.com/AgeMaguro/IconPatrol/releases/latest/download/IconPatrol.apk
+# Builds the Icon Patrol Android app and the Windows PC app, and publishes both as the newest GitHub release.
+# Stable download links: https://github.com/AgeMaguro/IconPatrol/releases/latest/download/IconPatrol.apk
+#                        https://github.com/AgeMaguro/IconPatrol/releases/latest/download/IconPatrol-PC.exe
 # The app's in-game updater reads this repo's latest release (name "Icon Patrol 1.0.N", N = versionCode).
 name: Icon Patrol APK
 
@@ -40,6 +41,17 @@ jobs:
           echo "VC=$VC" >> "$GITHUB_ENV"
           gradle --no-daemon assembleRelease -Pvc=$VC 2>&1 | tee build-output.txt
           cp app/build/outputs/apk/release/app-release.apk IconPatrol.apk
+      - name: Build PC app (Windows portable exe, Electron)
+        # a PC build problem never blocks the Android release; the exe is just left out
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          cd pc
+          mkdir -p game && cp ../IconPatrol.html game/index.html
+          npm install --no-audit --no-fund
+          npm pkg set version=1.0.$VC
+          npx electron-builder --win portable --x64 --publish never 2>&1 | tee -a ../build-output.txt
+          cp dist/IconPatrol-PC.exe ../IconPatrol-PC.exe
       - name: Publish release (old APK moves to past-versions/)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -51,9 +63,10 @@ jobs:
           fi
           gh release delete build-failed --cleanup-tag -y || true
           gh release delete latest --cleanup-tag -y || true
-          gh release create latest IconPatrol.apk --latest \
+          files="IconPatrol.apk"; [ -f IconPatrol-PC.exe ] && files="$files IconPatrol-PC.exe"
+          gh release create latest $files --latest \
             --title "Icon Patrol 1.0.$VC" \
-            --notes "Icon Patrol for Android, built from ${{ github.sha }}. On your phone: download IconPatrol.apk and open it, or use the in-game ⬆ update button. Changes: CHANGELOG.md"
+            --notes "Icon Patrol 1.0.$VC, built from ${{ github.sha }}. Android: download IconPatrol.apk and open it, or use the in-game ⬆ update button. Windows PC: download IconPatrol-PC.exe and run it (no install; Windows may warn because it isn't signed: More info → Run anyway). Changes: CHANGELOG.md"
           if [ -n "$prev" ]; then
             git config user.name "github-actions[bot]"
             git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
