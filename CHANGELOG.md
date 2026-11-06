@@ -11,6 +11,12 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.38 - 2026-11-06
+- Recycle Bin size has no limit now. Each meal adds a little less as it gets bigger (square-root growth: mass 42 -> core 3.3x and pull 1,170 m; mass 100 -> 4.5x and 1,430 m; mass 400 -> 8x, pull 2,210 m, past the arena edge), so in a long sector it can eventually swallow everything.
+- Left unfed, it evaporates (Hawking radiation): 5 s after its last meal it starts losing mass, a bit faster the bigger it is, and shrinks back.
+- If the Bin deletes your ship once it's huge, you respawn on the far side of the sector.
+- The GRAVITY WELL panel now appears as you approach (within 1.6x the pull range) with THREAT NONE · outside the well, so you see it before you're caught.
+
 ## 1.0.37 - 2026-11-06
 - PC app launch check is clearer. The splash now says "Up to date · v1.0.37 is the latest", "a new release is being built" (while CI swaps the release, which used to read "Offline"), "Couldn't reach GitHub (reason)" or "No answer from GitHub", and stays up long enough to read. Every check (launch and ⬆ button) is logged to %APPDATA%\Icon Patrol\update-log.txt for troubleshooting.
 - Note: 1.0.35's launch check worked as designed; it ran before 1.0.36 had finished building, so it correctly found nothing newer.

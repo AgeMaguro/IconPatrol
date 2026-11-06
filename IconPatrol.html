@@ -2746,7 +2746,7 @@ function hazBullet(b){   // your shots set off pop-up mines
 }
 function updateHazards(dt){
   haz.t += dt; const T = haz.t;
-  P.inCloud = false; P.binPull = 0; P.well = null; P.riding = false; P.mineArmed = false; P.inSweep = false;
+  P.inCloud = false; P.binPull = 0; P.well = null; P.nearBin = null; P.nearD = 1e9; P.riding = false; P.mineArmed = false; P.inSweep = false;
   // firewall grids
   for (const gr of haz.grids){
     gr.cyc = (gr.cyc + dt) % 5.5; gr.on = gr.cyc < 4; gr.cd -= dt;
@@ -2778,15 +2778,20 @@ function updateHazards(dt){
     b.spin += dt*0.7; b.rings[0].rotation.z = b.spin; b.rings[1].rotation.z = -b.spin*0.3;
     b.halo.quaternion.copy(camera.quaternion); b.halo.rotateZ(b.spin*0.8);   // the lensed arc always faces you
     b.photon.quaternion.copy(camera.quaternion);
-    const gf = 1 + Math.min(2.5, b.mass*0.06);   // grows fast: core and look up to 3.5x, reach up to 1.8x
-    b.range = BIN_RANGE*(1 + Math.min(0.8, b.mass*0.025)); b.core = BIN_CORE*gf; b.horizon = b.core*HORIZON_K;
+    // no size limit, but each meal adds a little less (square-root growth); left unfed it slowly evaporates
+    // (Hawking radiation): after 5 s without eating it loses mass, a bit faster the bigger it is
+    b.idle = (b.idle || 0) + dt;
+    if (b.idle > 5 && b.mass > 0) b.mass = Math.max(0, b.mass - dt*(0.12 + b.mass*0.004));
+    const sq = Math.sqrt(b.mass), gf = 1 + 0.35*sq;   // mass 42 -> 3.3x, 100 -> 4.5x, 400 -> 8x
+    b.range = BIN_RANGE*(1 + 0.12*sq); b.core = BIN_CORE*gf; b.horizon = b.core*HORIZON_K;
+    { const dd = b.g.position.distanceTo(P.pos); if (dd < b.range*1.6 && (!P.nearBin || dd < P.nearD)){ P.nearBin = b; P.nearD = dd; } }
     b.vis += (BIN_VIS*gf - b.vis)*Math.min(1, dt*2); b.g.scale.setScalar(b.vis);   // grows smoothly
     const pull = (pos, mul) => { hzA.copy(b.g.position).sub(pos); const d = hzA.length(); if (d > b.range || d < 0.1) return -1; const k = 1 - d/b.range; hzA.divideScalar(d).multiplyScalar(mul*(8 + 150*k*k*k)); return d; };
     // things without their own velocity (or whose AI keeps resetting it) get a separate drift toward the Bin
     const drag = (o, pos, mul) => { const d = pull(pos, mul); if (!o.binV) o.binV = V();
       if (d < 0){ o.binV.multiplyScalar(Math.pow(0.4, dt)); if (o.binV.lengthSq() > 0.01) pos.addScaledVector(o.binV, dt); return -1; }
       o.binV.addScaledVector(hzA, dt); pos.addScaledVector(o.binV, dt); return d; };
-    const eat = (pos, mass, color, n) => { b.mass += mass; burst(pos, color || '#c084fc', n || 14, 30, 0.6);
+    const eat = (pos, mass, color, n) => { b.mass += mass; b.idle = 0; burst(pos, color || '#c084fc', n || 14, 30, 0.6);
       if (Math.floor(b.mass/6) > b.told){ b.told = Math.floor(b.mass/6); msg('THE RECYCLE BIN GROWS', null, '#e9d5ff'); beep(110,0.4,'sawtooth',0.04,60); } };
     if (P.alive){ const d = pull(P.pos, 1);
       if (d >= 0){ P.vel.addScaledVector(hzA, dt); P.binPull = Math.max(P.binPull, 1 - d/b.range); P.well = b; P.wellD = d;
@@ -2800,7 +2805,8 @@ function updateHazards(dt){
           if (G.cur && G.cur.free){   // free flight does no damage, so the Bin just spits you back out
             P.pos.copy(b.g.position).addScaledVector(out, b.core + 70); P.vel.copy(out).multiplyScalar(150); msg('RECYCLED · restored from the Bin', null, '#ffedd5');
           } else {                    // sectors: the ship is deleted (one life); you respawn safely outside the well
-            P.pos.copy(b.g.position).addScaledVector(out, b.range + 150); if (P.pos.length() > R*0.9) P.pos.setLength(R*0.9); P.vel.set(0,0,0);
+            P.pos.copy(b.g.position).addScaledVector(out, b.range + 150); if (P.pos.length() > R*0.9) P.pos.copy(b.g.position).setLength(R*0.85).negate();   // far side of the sector if the well is huge
+            P.vel.set(0,0,0);
             msg('SHIP DELETED · lost to the Recycle Bin', null, '#ff6680'); P.inv = 0; P.pw.firewall = 0; damage(Math.max(0, P.shield) + Math.max(0, P.hull) + 1);
           }
         } } }
@@ -2810,7 +2816,7 @@ function updateHazards(dt){
     for (const ic of icons){ if (ic.dead) continue; const d = pull(ic.g.position, 0.6); if (d < 0) continue; ic.vel.addScaledVector(hzA, dt*3);
       if (d < b.core + 6){ ic.dead = true; eat(ic.g.position, 1, '#c084fc', 24); SFX.del();
         if (!ic.infected) addScore(-25); msg('RECYCLED ' + short(ic.f.name) + (ic.infected ? '' : ' −25'), ic.g.position, '#e9d5ff'); } }
-    for (const k of pickups){ const d = pull(k.g.position, 1.2); if (d < 0) continue; k.vel.addScaledVector(hzA, dt*3); if (d < b.core){ k.life = 0; b.mass += 0.1; } }
+    for (const k of pickups){ const d = pull(k.g.position, 1.2); if (d < 0) continue; k.vel.addScaledVector(hzA, dt*3); if (d < b.core){ k.life = 0; b.mass += 0.1; b.idle = 0; } }
     // other hazards drift in too and get eaten whole
     for (const m of haz.mines){ if (m.dead) continue; const d = drag(m, m.base, 0.8); if (d >= 0 && d < b.core + 8){ m.dead = true; hazGroup.remove(m.s); eat(m.base, 2, '#ffd400', 20); } }
     for (const c of haz.clouds){ if (c.dead) continue; const d = drag(c, c.g.position, 0.35); if (d >= 0) c.g.scale.setScalar(Math.max(0.15, Math.min(1, (d - b.core)/c.r)));   // squeezed as it falls in
@@ -2870,11 +2876,11 @@ function updateHazards(dt){
   }
 }
 function drawGravPanel(){
-  const b = P.well; if (!b || !P.alive) return;
-  const d = P.wellD, ve = binVesc(b, d), cLight = binVesc(b, b.horizon), spd = P.vel.length(), top = S.top, topB = S.top*REDLINE;
+  const b = P.well || P.nearBin; if (!b || !P.alive) return;
+  const d = P.well ? P.wellD : P.nearD, outside = d >= b.range, ve = binVesc(b, d), cLight = binVesc(b, b.horizon), spd = P.vel.length(), top = S.top, topB = S.top*REDLINE;
   const inside = d < b.horizon, flash = Math.floor(performance.now()/220) % 2;
-  const lvl = inside ? 4 : ve > topB ? 3 : ve > top ? 2 : ve > top*0.6 ? 1 : 0;
-  const LV = [['LOW','#4ade80','thrust away to leave'],['MODERATE','#facc15','full throttle to escape'],['HIGH','#fb923c','BOOST TO ESCAPE'],['CRITICAL','#f43f5e','escape barely possible'],['EVENT HORIZON','#ff2050','NO ESCAPE']][lvl];
+  const lvl = outside ? -1 : inside ? 4 : ve > topB ? 3 : ve > top ? 2 : ve > top*0.6 ? 1 : 0;
+  const LV = lvl < 0 ? ['NONE','#7dd3fc','outside the well'] : [['LOW','#4ade80','thrust away to leave'],['MODERATE','#facc15','full throttle to escape'],['HIGH','#fb923c','BOOST TO ESCAPE'],['CRITICAL','#f43f5e','escape barely possible'],['EVENT HORIZON','#ff2050','NO ESCAPE']][lvl];
   // above the cockpit SYSTEMS panel in first person, bottom-left corner in chase view
   let pw = 262, ph = 122, x = 16, y;
   if (fpv){ const {nx, nr, dh} = cockpitGeo(); const cph = Math.max(H < 320 ? 40 : 54, Math.min(118, dh - (H < 320 ? 8 : 18))); const cpw = Math.max(120, Math.min(250, W/2 - nr - 36));
@@ -2889,8 +2895,8 @@ function drawGravPanel(){
   const M = 10 + b.mass, f = '11px Consolas,monospace';
   const row = (txt, yy, col) => { hx.font = f; hx.fillStyle = col || '#fed7aa'; hx.fillText(txt, x + 8, y + yy); };
   row(`M ${M.toFixed(1)} PB   r_s = 2GM/c² = ${Math.round(b.horizon)} m`, 32);
-  row(`DIST ${Math.round(d)} m   ${inside ? 'INSIDE HORIZON' : 'to horizon ' + Math.round(d - b.horizon) + ' m'}`, 47, inside ? '#ff6680' : null);
-  row(`v_esc ${inside ? '> c' : Math.round(ve)}   you ${Math.round(spd)}   max ${Math.round(topB)}`, 62, ve > topB || inside ? '#ff8090' : null);
+  row(`DIST ${Math.round(d)} m   ${inside ? 'INSIDE HORIZON' : outside ? 'pull ' + Math.round(b.range) + ' m' : 'to horizon ' + Math.round(d - b.horizon) + ' m'}`, 47, inside ? '#ff6680' : null);
+  row(`v_esc ${inside ? '> c' : outside ? 0 : Math.round(ve)}   you ${Math.round(spd)}   max ${Math.round(topB)}`, 62, ve > topB || inside ? '#ff8090' : null);
   // threat bar
   const bx = x + 8, by = y + 72, bw = pw - 16 - 54, frac = inside ? 1 : Math.min(1, ve/(topB*1.15));
   hx.fillStyle = 'rgba(60,20,20,.8)'; hx.fillRect(bx, by, bw, 9);
