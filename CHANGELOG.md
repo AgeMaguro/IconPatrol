@@ -11,6 +11,18 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.31 - 2026-11-06
+- New 3D hazards in every sector and free flight (none in the boss arena):
+  - **Firewall grids:** red laser sheets that slide back and forth. They're on for 4 s and off for 1.5 s, and flicker just before switching back on. Flying into a live one stops you and costs 16 shield. Pass while it's off.
+  - **Corrupted data clouds:** glitchy magenta and green static. Inside, the HUD scrambles, the navball shows noise, and lock-on and missile lock go offline. Good for ambushes.
+  - **Recycle Bin:** a black hole (70% of sectors) that pulls in you, rocks, icons and pickups. Inside about 100 m you need boost to escape. Reaching the core costs 35 and spits you back out. Icons that fall in are deleted (−25 if clean), and so are pickups and rocks. It shows as a big purple dot on the navball.
+  - **Defrag sweeps:** every 45-75 s you get a 5-second warning, then a huge glowing disc crosses the sector near you. It carries anything it touches (6 damage a second while you're on it) and lines rocks up in rows. Move aside or ride it.
+  - **Packet streams:** lanes of fast green data blocks. Crossing one gets you hit for 10. Flying along one pulls you up to 230 speed.
+  - **Pop-up mines:** fake "Congratulations!! You've WON a FREE Pentium III" windows. They arm when you come within 55 m and blow up 0.9 s later (up to 32 damage, plus knockback). Shoot them from range for +15.
+  - Warnings for each appear at the top center of the HUD.
+- New setting, **Thrust control** (title screen ⚙ Settings and the pause menu): Throttle lever (default) or Hold to thrust, the classic way. With Hold, the ship only pushes while W, RT or the touch lever is held, and coasts when you let go; S or LT brakes.
+- New missile lock panel just above the navball. "MISSILE LOCKING n%" fills up, then a solid, flashing "◆ MISSILE LOCKED · FIRE (R / RMB)" (X on a controller), or "NO MISSILES" / "RELOADING".
+
 ## 1.0.30 - 2026-11-06
 - 3D arena is bigger: radius 1600, up from 1000, with more scenery cubes and data rings. Background stars are dimmer and smaller.
 - New hazard, asteroids: 50 lumpy amber wireframe rocks drift and spin through every sector and free flight, but not the boss arena. Hitting one bounces you off and chips your shield, harder the faster you hit (no damage in free flight). Redline boost smashes small ones. Shots break them, big rocks split into smaller ones, and small ones sometimes drop a bit. They block enemy fire, so they work as cover. Nearby rocks (within 260 m) show on the navball as brown dots, and the field slowly refills out of sight.

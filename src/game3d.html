@@ -956,6 +956,7 @@ function settingItems(){
   items.push({lab:'View', desc:'First person (cockpit) or chase camera. Key V · controller Y.', val:() => fpv ? 'First person' : 'Chase cam', act:toggleView});
   items.push({lab:'HUD detail', desc:'Clean (default): flight guides only while turning or drifting, faded near the crosshair. Full: every guide always. Minimal: crosshair, lock-on and navball. Key H · controller R3.', val:() => HUD_NAME[hudMode], act:cycleHud});
   items.push({lab:'Flight mode', desc:'Pure drift (default): no assists, real momentum. Assist and Coordinated are experimental. Key G.', val:() => FLIGHT_NAME[flightMode], act:cycleFlight});
+  items.push({lab:'Thrust control', desc:'Throttle lever (default): W / RT / the touch lever set a throttle that stays put. Hold to thrust: classic, the ship only pushes while W / RT / the lever is held, and coasts when you let go. S / LT brake.', val:() => thrustMode === 'hold' ? 'Hold to thrust' : 'Throttle lever', act:() => { thrustMode = thrustMode === 'hold' ? 'lever' : 'hold'; lsSet('iconpatrol3d.thrust', thrustMode); throttle = 0; if (G.state === 'play') toast(thrustMode === 'hold' ? 'Thrust: HOLD · push only while held' : 'Thrust: LEVER · throttle stays put'); }});
   items.push({lab:'Invert pitch', desc:'Push up to dive (flight-sim style). Key I.', val:() => invert ? 'On' : 'Off', act:() => { invert = !invert; lsSet('iconpatrol3d.inv', invert?'1':'0'); showInv(); }});
   items.push({lab:'Auto-fire', desc:'Touch screens: fires when a virus or infected icon is lined up.', val:() => TC.auto ? 'On' : 'Off', act:() => { TC.auto = !TC.auto; lsSet('iconpatrol.autofire', TC.auto ? '1' : '0'); const ab = document.getElementById('tAuto'); if (ab) ab.textContent = 'AUTO-FIRE ' + (TC.auto ? 'ON' : 'OFF'); }});
   items.push({lab:'Sound', desc:'Key M.', val:() => muted ? 'Off' : 'On', act:() => { muted = !muted; lsSet('iconpatrol.muted', muted?'1':'0'); }});
@@ -1067,14 +1068,17 @@ function buildFromPicked(list){
 })();
 
 // ---------- throttle lever ----------
-let throttle = 0, effThr = 0; const REDLINE = 1.7, LEVER_100 = 0.76; const IMPULSE = 0.25;   // thrust left when the fuel tank is empty
+let throttle = 0, effThr = 0, leverHeld = false;
+// thrust control: 'lever' = throttle stays where you set it (default); 'hold' = classic, thrust only while the button is held
+let thrustMode = lsGet('iconpatrol3d.thrust') === 'hold' ? 'hold' : 'lever';
+const REDLINE = 1.7, LEVER_100 = 0.76; const IMPULSE = 0.25;   // thrust left when the fuel tank is empty
 const leverVal = f => f <= LEVER_100 ? f/LEVER_100 : 1 + (f-LEVER_100)/(1-LEVER_100)*(REDLINE-1);
 const leverFrac = v => v <= 1 ? v*LEVER_100 : LEVER_100 + (v-1)/(REDLINE-1)*(1-LEVER_100);
 (function(){
   const lv = $('tThr'); if (!lv) return; let pid = null;
   const set = e => { const r = lv.getBoundingClientRect(); throttle = leverVal(Math.max(0, Math.min(1, (r.bottom - e.clientY)/r.height))); };
-  const release = () => { pid = null; lv.classList.remove('down'); if (throttle > 1) throttle = 1; };
-  lv.addEventListener('pointerdown', e => { pid = e.pointerId; try { lv.setPointerCapture(pid); } catch(_){} lv.classList.add('down'); set(e); e.preventDefault(); });
+  const release = () => { pid = null; leverHeld = false; lv.classList.remove('down'); if (throttle > 1) throttle = 1; if (thrustMode === 'hold') throttle = 0; };
+  lv.addEventListener('pointerdown', e => { pid = e.pointerId; leverHeld = true; try { lv.setPointerCapture(pid); } catch(_){} lv.classList.add('down'); set(e); e.preventDefault(); });
   lv.addEventListener('pointermove', e => { if (e.pointerId === pid) set(e); });
   lv.addEventListener('pointerup', e => { if (e.pointerId === pid) release(); });
   lv.addEventListener('pointercancel', e => { if (e.pointerId === pid) release(); });
@@ -1214,6 +1218,7 @@ function rockSpot(minD){ let p, t = 0; do { p = randInSphere(R*0.92); t++; } whi
 function newRock(minD){ const big = Math.random() < 0.22; spawnRock(rockSpot(minD), big ? 22 + Math.random()*24 : 4 + Math.random()*11); }
 function seedRocks(){
   for (const k of rocks) dropRock(k); rocks = []; rockT = 0;
+  seedHazards();
   if (G.cur && G.cur.boss) return;   // the boss arena stays clear
   for (let i=0;i<ROCK_COUNT;i++) newRock(160);
 }
@@ -1259,6 +1264,235 @@ function rockBlocks(b){   // any bullet that hits a rock stops there
     if (!b.enemy){ k.hp -= b.dmg || 1; if (k.hp <= 0) breakRock(k); }
     return true; } }
   return false;
+}
+
+// ---------- sector hazards (2026-11-06) ----------
+// Firewall grids, corrupted data clouds, the Recycle Bin, defrag sweeps, packet streams and pop-up mines.
+// Seeded with the rocks (seedRocks); none in the boss arena. damage() already skips free flight.
+let haz = {t:0, grids:[], clouds:[], bins:[], streams:[], mines:[], sweep:null, sweepT:50, mineT:0}, hazGroup = null;
+const hzA = V(), hzB = V(), hzQ = new THREE.Quaternion();
+const HZ = {grids:2, clouds:3, binChance:0.7, streams:2, mines:7};
+function canvasSprite(w, h, draw, height){
+  const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
+  const tex = new THREE.CanvasTexture(c), s = new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false}));
+  s.scale.set(height*w/h, height, 1); return s;
+}
+function hazSpot(minD, maxR){ let p, t = 0; do { p = randInSphere(maxR); t++; } while (P && p.distanceTo(P.pos) < minD && t < 50); return p; }
+function gridLines(size, n){ const h = size/2, pts = []; for (let i=0;i<=n;i++){ const u = -h + i*size/n; pts.push(-h,u,0, h,u,0, u,-h,0, u,h,0); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts,3)); return g; }
+
+// firewall grid: a red laser sheet that slides back and forth; 4 s on, 1.5 s off (flickers just before it comes back)
+function makeGrid(){
+  const size = 170 + Math.random()*130, g = new THREE.Group();
+  const mat = new THREE.LineBasicMaterial({color:0xff2a3a, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false});
+  g.add(new THREE.LineSegments(gridLines(size, 12), mat));
+  g.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(size, size)), new THREE.LineBasicMaterial({color:0xff7080})));
+  const base = hazSpot(300, R*0.75); g.position.copy(base); g.lookAt(hzA.copy(base).add(randDir())); hazGroup.add(g);
+  haz.grids.push({g, mat, half:size/2, base, n:V(0,0,1).applyQuaternion(g.quaternion), amp:50 + Math.random()*110, w:0.2 + Math.random()*0.25, ph:Math.random()*6, cyc:Math.random()*5.5, on:true, side:null, cd:0});
+}
+// corrupted data cloud: flickering glitch specks; inside it the HUD scrambles and targeting goes offline
+function makeCloud(){
+  const r = 80 + Math.random()*70, n = 260, pos = new Float32Array(n*3), col = new Float32Array(n*3);
+  for (let i=0;i<n;i++){ const p = randInSphere(r); pos.set([p.x,p.y,p.z], i*3); col.set(Math.random() < 0.55 ? [0.85,0.25,1] : [0.25,1,0.55], i*3); }
+  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos,3)); geo.setAttribute('color', new THREE.BufferAttribute(col,3));
+  const g = new THREE.Group();
+  g.add(new THREE.Points(geo, new THREE.PointsMaterial({size:6, sizeAttenuation:false, map:DOT, vertexColors:true, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending, depthWrite:false})));
+  g.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(r, 1)), new THREE.LineBasicMaterial({color:0xc040ff, transparent:true, opacity:0.16})));
+  g.position.copy(hazSpot(240, R*0.8)); hazGroup.add(g);
+  haz.clouds.push({g, r, geo, base:pos.slice()});
+}
+// the Recycle Bin: a black hole that pulls in you, rocks, icons and pickups. Whatever reaches the core is deleted.
+function makeBin(){
+  const g = new THREE.Group(), rings = [];
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(16, 20, 14), basic(0x000000)));
+  g.add(glowSprite(0x8b5cf6, 120, 0.45));
+  [[30,0x7dd3fc,0.8],[48,0x818cf8,0.55],[72,0xc084fc,0.35],[98,0xa855f7,0.2]].forEach(([r,c,o],i) => {
+    const m = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.TorusGeometry(r, 0.8, 3, 64)), new THREE.LineBasicMaterial({color:c, transparent:true, opacity:o}));
+    m.rotation.x = Math.PI/2 + (i - 1.5)*0.12; g.add(m); rings.push(m); });
+  const lab = canvasSprite(256, 64, (x, w, h) => {
+    x.strokeStyle = '#c4b5fd'; x.lineWidth = 4; x.strokeRect(14, 14, 28, 38); x.beginPath(); x.moveTo(8, 14); x.lineTo(48, 14); x.moveTo(22, 8); x.lineTo(34, 8); x.stroke();
+    x.font = 'bold 30px Consolas,monospace'; x.fillStyle = '#e9d5ff'; x.fillText('RECYCLE BIN', 62, 44); }, 14);
+  lab.position.y = 44; g.add(lab);
+  g.position.copy(hazSpot(420, R*0.6)); hazGroup.add(g);
+  haz.bins.push({g, rings, range:480, core:18});
+}
+// packet stream: a lane of fast data blocks. Crossing it hurts; flying along it gives you a speed boost.
+const PK_EDGE = new THREE.EdgesGeometry(new THREE.BoxGeometry(3.4, 3.4, 7));
+function makeStream(){
+  const C = randInSphere(R*0.45), D = randDir(), L = 1500, A = C.clone().addScaledVector(D, -L/2), N = 34, blocks = [];
+  const g = new THREE.Group(), mat = new THREE.LineBasicMaterial({color:0x4dffa0, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending, depthWrite:false});
+  const lane = new THREE.BufferGeometry().setFromPoints([A, A.clone().addScaledVector(D, L)]);
+  g.add(new THREE.Line(lane, new THREE.LineBasicMaterial({color:0x22ff88, transparent:true, opacity:0.22})));
+  for (let i=0;i<N;i++){ const b = new THREE.LineSegments(PK_EDGE, mat); b.quaternion.setFromUnitVectors(V(0,0,1), D); g.add(b); blocks.push(b); }
+  hazGroup.add(g);
+  haz.streams.push({g, A, D, L, sp:230, blocks, spacing:L/N, off:Math.random()*L, cd:0});
+}
+// pop-up mine: a "You've won!" window that arms when you get close, then blows up. Shoot it from range.
+let POPUP_TEX = null;
+function popupTex(){
+  if (POPUP_TEX) return POPUP_TEX;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 168; const x = c.getContext('2d');
+  x.fillStyle = '#c0c0c0'; x.fillRect(0,0,256,168); x.fillStyle = '#fff'; x.fillRect(0,0,256,3); x.fillRect(0,0,3,168); x.fillStyle = '#404040'; x.fillRect(253,0,3,168); x.fillRect(0,165,256,3);
+  const gr = x.createLinearGradient(0,0,256,0); gr.addColorStop(0,'#000080'); gr.addColorStop(1,'#1084d0'); x.fillStyle = gr; x.fillRect(5,5,246,26);
+  x.font = 'bold 17px Arial,sans-serif'; x.fillStyle = '#fff'; x.fillText('Congratulations!!', 12, 24);
+  x.fillStyle = '#c0c0c0'; x.fillRect(226,9,20,18); x.fillStyle = '#000'; x.font = 'bold 15px Arial'; x.fillText('×', 231, 24);
+  x.fillStyle = '#ffd400'; x.beginPath(); x.arc(36, 74, 18, 0, 7); x.fill(); x.fillStyle = '#000'; x.font = 'bold 24px Arial'; x.fillText('!', 31, 83);
+  x.font = 'bold 16px Arial,sans-serif'; x.fillText("You've WON a FREE", 66, 66); x.fillText('Pentium III !!!', 66, 88);
+  x.fillStyle = '#c0c0c0'; x.fillRect(88,112,80,32); x.strokeStyle = '#000'; x.lineWidth = 2; x.strokeRect(88,112,80,32); x.fillStyle = '#000'; x.font = 'bold 16px Arial'; x.fillText('OK', 116, 134);
+  return POPUP_TEX = new THREE.CanvasTexture(c);
+}
+function makeMine(minD){
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map:popupTex(), transparent:true, depthWrite:false})); s.scale.set(30, 19.7, 1);
+  const base = hazSpot(minD, R*0.85); s.position.copy(base); hazGroup.add(s);
+  haz.mines.push({s, base, ph:Math.random()*6, arm:-1, dead:false});
+}
+function seedHazards(){
+  if (hazGroup){ scene.remove(hazGroup); hazGroup.traverse(o => { if (o.geometry && o.geometry !== PK_EDGE) o.geometry.dispose(); }); }
+  hazGroup = new THREE.Group(); scene.add(hazGroup);
+  haz = {t:0, grids:[], clouds:[], bins:[], streams:[], mines:[], sweep:null, sweepT:35 + Math.random()*20, mineT:0};
+  if (G.cur && G.cur.boss) return;
+  for (let i=0;i<HZ.grids;i++) makeGrid();
+  for (let i=0;i<HZ.clouds;i++) makeCloud();
+  if (Math.random() < HZ.binChance) makeBin();
+  for (let i=0;i<HZ.streams;i++) makeStream();
+  for (let i=0;i<HZ.mines;i++) makeMine(220);
+}
+// defrag sweep: every 45-75 s a huge disc of light crosses the sector near you, carrying everything it touches and lining rocks up in rows
+function startSweep(){
+  const axis = randDir(), rad = 520, g = new THREE.Group();
+  const lat = randDir(); lat.addScaledVector(axis, -lat.dot(axis)).normalize();
+  const through = P.pos.clone().addScaledVector(lat, Math.random()*220);
+  const mat = new THREE.LineBasicMaterial({color:0x38bdf8, transparent:true, opacity:0.5, blending:THREE.AdditiveBlending, depthWrite:false});
+  g.add(new THREE.LineSegments(gridLines(rad*2, 26), mat));
+  const fill = new THREE.Mesh(new THREE.CircleGeometry(rad, 48), new THREE.MeshBasicMaterial({color:0x38bdf8, transparent:true, opacity:0.07, side:THREE.DoubleSide, depthWrite:false}));
+  g.add(fill); g.add(new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CircleGeometry(rad, 64)), new THREE.LineBasicMaterial({color:0x9be7ff})));
+  g.quaternion.setFromUnitVectors(V(0,0,1), axis);
+  const u = V(1,0,0).applyQuaternion(g.quaternion), v = V(0,1,0).applyQuaternion(g.quaternion);
+  hazGroup.add(g);
+  haz.sweep = {g, mat, axis, u, v, rad, through, s:-1250, sp:150, warn:5, cd:0, told:false, rocks:new Set()};
+  toast('DEFRAG SCHEDULED · a sweep crosses the sector in 5 s');
+  beep(300,0.2,'square',0.03); setTimeout(()=>beep(300,0.2,'square',0.03),300);
+}
+function explodeMine(m){
+  if (m.dead) return; m.dead = true; hazGroup.remove(m.s);
+  const at = m.s.position; burst(at, '#ffd400', 40, 60, 0.8); burst(at, '#ff4444', 20, 40, 0.6); SFX.boom(); rumble(200, 0.6);
+  const d = P.alive ? at.distanceTo(P.pos) : 999;
+  if (d < 60){ damage(Math.round(32*(1 - d/70))); P.vel.addScaledVector(hzA.copy(P.pos).sub(at).normalize(), 90*(1 - d/70)); }
+  for (const k of rocks) if (k.hp > 0 && k.g.position.distanceTo(at) < 40 + k.r) breakRock(k);
+}
+function hazBullet(b){   // your shots set off pop-up mines
+  if (b.enemy) return false;
+  for (const m of haz.mines){ if (!m.dead && b.g.position.distanceToSquared(m.s.position) < 15*15){ b.life = 0; addScore(15); msg('POP-UP CLOSED +15', m.s.position, '#ffd400'); explodeMine(m); return true; } }
+  return false;
+}
+function updateHazards(dt){
+  haz.t += dt; const T = haz.t;
+  P.inCloud = false; P.binPull = 0; P.riding = false; P.mineArmed = false; P.inSweep = false;
+  // firewall grids
+  for (const gr of haz.grids){
+    gr.cyc = (gr.cyc + dt) % 5.5; gr.on = gr.cyc < 4; gr.cd -= dt;
+    const soon = !gr.on && gr.cyc > 4.9;
+    gr.mat.opacity = gr.on ? 0.7 + Math.random()*0.25 : soon ? (Math.random() < 0.5 ? 0.6 : 0.1) : 0.08;
+    gr.g.position.copy(gr.base).addScaledVector(gr.n, Math.sin(T*gr.w + gr.ph)*gr.amp);
+    if (!P.alive){ gr.side = null; continue; }
+    hzA.copy(P.pos).sub(gr.g.position); const z = hzA.dot(gr.n);
+    hzA.applyQuaternion(hzQ.copy(gr.g.quaternion).invert());
+    const inside = Math.abs(hzA.x) < gr.half && Math.abs(hzA.y) < gr.half, side = z >= 0 ? 1 : -1;
+    if (gr.side !== null && side !== gr.side && gr.on && inside){
+      P.pos.addScaledVector(gr.n, gr.side*(Math.abs(z) + 2.5));           // the laser sheet stops you on your side
+      const vn = P.vel.dot(gr.n); if (vn*gr.side < 0) P.vel.addScaledVector(gr.n, -vn*1.6);
+      if (gr.cd <= 0){ gr.cd = 0.5; damage(16); SFX.hit(); burst(P.pos, '#ff3040', 14, 35, 0.5); msg('FIREWALL', null, '#ff5060'); rumble(150, 0.6); }
+    } else gr.side = side;
+  }
+  // corrupted data clouds
+  for (const c of haz.clouds){
+    c.g.rotation.y += dt*0.15;
+    const p = c.geo.attributes.position;
+    for (let k=0;k<12;k++){ const i = (Math.random()*p.count)|0; p.setXYZ(i, c.base[i*3] + (Math.random()-.5)*8, c.base[i*3+1] + (Math.random()-.5)*8, c.base[i*3+2] + (Math.random()-.5)*8); }
+    p.needsUpdate = true;
+    if (P.alive && P.pos.distanceToSquared(c.g.position) < c.r*c.r) P.inCloud = true;
+  }
+  if (P.inCloud){ TGT = null; MS.tgt = null; MS.t = 0; MS.locked = false; }   // targeting offline inside the static
+  // Recycle Bin
+  for (const b of haz.bins){
+    b.rings.forEach((m,i) => m.rotation.z += dt*(1.6 - i*0.3));
+    const pull = (pos, mul) => { hzA.copy(b.g.position).sub(pos); const d = hzA.length(); if (d > b.range || d < 0.1) return -1; const k = 1 - d/b.range; hzA.divideScalar(d).multiplyScalar(mul*(8 + 140*k*k*k)); return d; };
+    if (P.alive){ const d = pull(P.pos, 1);
+      if (d >= 0){ P.vel.addScaledVector(hzA, dt); P.binPull = Math.max(P.binPull, 1 - d/b.range);
+        if (d < b.core + 3){
+          const out = randDir(); P.pos.copy(b.g.position).addScaledVector(out, b.core + 70); P.vel.copy(out).multiplyScalar(150);
+          damage(35); burst(b.g.position, '#c084fc', 50, 70, 1); SFX.boom(); rumble(400, 1); msg('RECYCLED · restored from the Bin', null, '#e9d5ff');
+        } } }
+    for (const k of rocks){ if (k.hp <= 0) continue; const d = pull(k.g.position, 1); if (d < 0) continue; k.vel.addScaledVector(hzA, dt); if (d < b.core){ k.hp = 0; burst(k.g.position, '#c084fc', 10, 25, 0.5); } }
+    for (const ic of icons){ if (ic.dead) continue; const d = pull(ic.g.position, 0.6); if (d < 0) continue; ic.vel.addScaledVector(hzA, dt*3);
+      if (d < b.core + 6){ ic.dead = true; burst(ic.g.position, '#c084fc', 24, 40); SFX.del();
+        if (!ic.infected) addScore(-25); msg('RECYCLED ' + short(ic.f.name) + (ic.infected ? '' : ' −25'), ic.g.position, '#e9d5ff'); } }
+    for (const k of pickups){ const d = pull(k.g.position, 1.2); if (d < 0) continue; k.vel.addScaledVector(hzA, dt*3); if (d < b.core) k.life = 0; }
+  }
+  // packet streams
+  for (const st of haz.streams){
+    st.off = (st.off + st.sp*dt) % st.L; st.cd -= dt;
+    st.blocks.forEach((m,i) => m.position.copy(st.A).addScaledVector(st.D, (i*st.spacing + st.off) % st.L));
+    if (!P.alive) continue;
+    hzA.copy(P.pos).sub(st.A); const s = hzA.dot(st.D); if (s < 0 || s > st.L) continue;
+    const lat = hzA.addScaledVector(st.D, -s).length(); if (lat > 16) continue;
+    const vD = P.vel.dot(st.D);
+    if (vD > 15){ P.riding = true; if (vD < st.sp) P.vel.addScaledVector(st.D, Math.min(st.sp - vD, 150*dt)); }
+    else if (st.cd <= 0) for (const m of st.blocks){ if (m.position.distanceToSquared(P.pos) < 36){
+      st.cd = 0.6; damage(10); SFX.hit(); burst(P.pos, '#4dffa0', 12, 30, 0.4); msg('PACKET HIT', null, '#4dffa0');
+      P.vel.addScaledVector(st.D, (st.sp - vD)*0.45); break; } }
+  }
+  // pop-up mines
+  for (const m of haz.mines){
+    if (m.dead) continue;
+    m.s.position.copy(m.base); m.s.position.y += Math.sin(T*1.3 + m.ph)*3;
+    if (m.arm < 0){ if (P.alive && m.s.position.distanceToSquared(P.pos) < 55*55){ m.arm = 0.9; beep(880,0.06,'square',0.04); } }
+    else { m.arm -= dt; P.mineArmed = true; const fl = Math.floor(m.arm*12) % 2; m.s.material.color.set(fl ? 0xff4040 : 0xffffff); if (fl && Math.random() < 0.2) beep(1200,0.03,'square',0.03); if (m.arm <= 0) explodeMine(m); }
+  }
+  haz.mines = haz.mines.filter(m => !m.dead);
+  if (!(G.cur && G.cur.boss) && haz.mines.length < HZ.mines){ haz.mineT -= dt; if (haz.mineT <= 0){ haz.mineT = 18; makeMine(500); } }
+  // defrag sweep
+  if (!(G.cur && G.cur.boss) && hazGroup){
+    if (!haz.sweep){ haz.sweepT -= dt; if (haz.sweepT <= 0 && P.alive) startSweep(); }
+    const w = haz.sweep;
+    if (w){
+      if (w.warn > 0){ w.warn -= dt; w.mat.opacity = 0.15 + 0.15*Math.sin(T*10); }
+      else { w.s += w.sp*dt; w.mat.opacity = 0.5; }
+      w.g.position.copy(w.through).addScaledVector(w.axis, w.s);
+      const carry = (pos, vel, isShip) => {
+        hzA.copy(pos).sub(w.g.position); const a = hzA.dot(w.axis); if (a < -6 || a > 8) return false;
+        if (hzA.addScaledVector(w.axis, -a).length() > w.rad) return false;
+        pos.addScaledVector(w.axis, 8 - a);
+        const va = vel.dot(w.axis); if (va < w.sp) vel.addScaledVector(w.axis, w.sp - va);
+        return true; };
+      if (w.warn <= 0){
+        if (P.alive && carry(P.pos, P.vel, true)){ P.inSweep = true; w.cd -= dt;
+          if (!w.told){ w.told = true; msg('CAUGHT IN DEFRAG', null, '#7dd3fc'); }
+          if (w.cd <= 0){ w.cd = 1; damage(6); } }
+        for (const k of rocks){ if (k.hp <= 0 || !carry(k.g.position, k.vel)) continue;
+          if (!w.rocks.has(k)){ w.rocks.add(k);   // snap into neat rows on the sweep's grid
+            hzA.copy(k.g.position).sub(w.g.position); const cu = Math.round(hzA.dot(w.u)/40)*40, cv = Math.round(hzA.dot(w.v)/40)*40;
+            k.g.position.copy(w.g.position).addScaledVector(w.u, cu).addScaledVector(w.v, cv).addScaledVector(w.axis, 8); k.vel.copy(w.axis).multiplyScalar(w.sp); k.spin.multiplyScalar(0.2); } }
+      }
+      if (w.s > 1250){ hazGroup.remove(w.g); w.g.traverse(o => o.geometry && o.geometry.dispose());
+        for (const k of w.rocks) if (k.hp > 0) k.vel.copy(randDir()).multiplyScalar(4 + Math.random()*8);
+        haz.sweep = null; haz.sweepT = 45 + Math.random()*30; }
+    }
+  }
+}
+function drawHazHUD(){
+  const lines = [], fl = Math.floor(performance.now()/250) % 2;
+  if (P.inCloud){
+    for (let i=0;i<7;i++){ hx.fillStyle = Math.random() < 0.5 ? 'rgba(220,60,255,.16)' : 'rgba(60,255,140,.13)'; hx.fillRect(0, Math.random()*H, W, 2 + Math.random()*7); }
+    lines.push(['▒ SIGNAL CORRUPTED · targeting offline ▒', fl ? '#e879f9' : '#4ade80']);
+  }
+  if (P.binPull > 0.3) lines.push([P.binPull > 0.75 ? '⚠ RECYCLE BIN · BOOST TO ESCAPE' : '⚠ RECYCLE BIN GRAVITY', fl ? '#c084fc' : '#e9d5ff']);
+  if (haz.sweep && haz.sweep.warn > 0) lines.push([`⚠ DEFRAG SWEEP INCOMING · ${Math.ceil(haz.sweep.warn)}`, fl ? '#38bdf8' : '#e0f2fe']);
+  else if (P.inSweep) lines.push(['DEFRAG SWEEP · move aside or ride it', '#7dd3fc']);
+  if (P.riding) lines.push(['PACKET STREAM ▶▶ speed boost', '#4dffa0']);
+  if (P.mineArmed) lines.push(['⚠ POP-UP ARMED', fl ? '#ff4040' : '#ffd400']);
+  hx.font = 'bold 15px Consolas,monospace'; hx.textAlign = 'center';
+  lines.forEach(([txt, col], i) => { hx.fillStyle = 'rgba(0,6,14,.6)'; const w = hx.measureText(txt).width + 18; hx.fillRect(W/2 - w/2, H*0.2 + i*24 - 15, w, 21); hx.fillStyle = col; hx.fillText(txt, W/2, H*0.2 + i*24); });
 }
 
 function damage(n){
@@ -1450,7 +1684,7 @@ function drawGates(gates, isGhost, fade, ap, use){
   }
 }
 const _pp = V(), _pv = V(), _pf = V(), _pr = V(), _pu = V(), _pc = V(), _pq = new THREE.Quaternion(), _pdq = new THREE.Quaternion(), _pe = new THREE.Euler();
-if (window.__IPDEBUG) window.__ip = { startBoss:()=>startBoss(), boss:()=>boss, aim:()=>({TGT, aimHit}), icons:()=>icons, S:()=>S, mouse:()=>mouse, G:()=>G, P:()=>P, viruses:()=>viruses, bullets:()=>bullets, rocks:()=>rocks, spawnVirus, damage, MS:()=>MS, missiles:()=>missiles, pickups:()=>pickups, V, fwd:()=>fwd, right:()=>right, up:()=>up };
+if (window.__IPDEBUG) window.__ip = { startBoss:()=>startBoss(), boss:()=>boss, aim:()=>({TGT, aimHit}), icons:()=>icons, S:()=>S, mouse:()=>mouse, G:()=>G, P:()=>P, viruses:()=>viruses, bullets:()=>bullets, rocks:()=>rocks, haz:()=>haz, startSweep, makeBin, spawnVirus, damage, MS:()=>MS, missiles:()=>missiles, pickups:()=>pickups, V, fwd:()=>fwd, right:()=>right, up:()=>up };
 function scanTarget(){
   // nearest hostile by angle from the nose: 'near' inside a wide cone, 'locked' inside the firing cone
   let best = null, bestAng = NEAR_ANG;
@@ -1534,11 +1768,18 @@ function update(dt){
     scanTarget(); scanMissile(dt);
 
     // throttle: a setting that stays where you put it. 0..1 normal, 1..REDLINE burns boost
-    if (keys.th && throttle < 1) throttle = Math.min(1, throttle + 0.8*dt);
-    if (keys.br && throttle > 0) throttle = Math.max(0, Math.min(throttle, 1) - 0.9*dt);
-    if (pad.thrust > 0.05 && throttle < 1) throttle = Math.min(1, throttle + pad.thrust*0.9*dt);
-    if (pad.brake > 0.05 && throttle > 0) throttle = Math.max(0, Math.min(throttle, 1) - pad.brake*0.9*dt);
-    const brakeAmt = Math.max(TC.brake ? 1 : 0, keys.br && throttle <= 0.001 ? 1 : 0, throttle <= 0.001 ? pad.brake : 0);
+    let brakeAmt;
+    if (thrustMode === 'hold'){
+      // classic: W / RT / lever pushes only while held; let go and you coast. S / LT brake.
+      if (!leverHeld) throttle = Math.max(keys.th ? 1 : 0, pad.thrust > 0.05 ? Math.min(1, pad.thrust) : 0);
+      brakeAmt = Math.max(TC.brake ? 1 : 0, keys.br ? 1 : 0, pad.brake > 0.05 ? pad.brake : 0);
+    } else {
+      if (keys.th && throttle < 1) throttle = Math.min(1, throttle + 0.8*dt);
+      if (keys.br && throttle > 0) throttle = Math.max(0, Math.min(throttle, 1) - 0.9*dt);
+      if (pad.thrust > 0.05 && throttle < 1) throttle = Math.min(1, throttle + pad.thrust*0.9*dt);
+      if (pad.brake > 0.05 && throttle > 0) throttle = Math.max(0, Math.min(throttle, 1) - pad.brake*0.9*dt);
+      brakeAmt = Math.max(TC.brake ? 1 : 0, keys.br && throttle <= 0.001 ? 1 : 0, throttle <= 0.001 ? pad.brake : 0);
+    }
     const holdBoost = !!(keys.boost || pad.boost);
     let want = holdBoost ? REDLINE : throttle;
     if (want > 1 && P.boost <= 0) want = 1;                    // redline needs boost
@@ -1637,8 +1878,8 @@ function update(dt){
 
   // ---- bullets ----
   for (const b of bullets){ b.g.position.addScaledVector(b.vel, dt); b.life -= dt; if (b.g.position.lengthSq() > (R+80)*(R+80)) b.life = 0; }
-  updateRocks(dt);
-  for (const b of bullets) if (b.life > 0) rockBlocks(b);
+  updateRocks(dt); updateHazards(dt);
+  for (const b of bullets) if (b.life > 0 && !rockBlocks(b)) hazBullet(b);
 
   updateMissiles(dt);
   // ---- virus spawning ----
@@ -2152,6 +2393,22 @@ function drawHUD(t){
       hx.fillText(MS.locked ? ((INF() || P.msl > 0) ? 'MSL LOCK' : 'MSL LOCK · EMPTY') : 'MSL', mp.x + sz + 6, mp.y + 4);
     }
   }
+  // missile status panel (fixed, just above the navball): LOCKING with a fill bar, then a big flashing LOCKED · FIRE
+  if (P.alive && MS.tgt){
+    const f = Math.min(1, MS.t/MSL_LOCK_T), have = INF() || P.msl > 0, ready = MS.locked && have && MS.cool <= 0;
+    const keyHint = TC.used ? '' : (padGp ? ' (X)' : ' (R / RMB)');
+    const label = !MS.locked ? `MISSILE LOCKING ${Math.round(f*100)}%` : !have ? 'MISSILE LOCKED · NO MISSILES' : MS.cool > 0 ? 'MISSILE LOCKED · RELOADING' : `◆ MISSILE LOCKED · FIRE${keyHint}`;
+    hx.font = 'bold 14px Consolas,monospace';
+    const bw = Math.max(230, hx.measureText(label).width + 30), bh = 30, bx = W/2 - bw/2, by = H - (H > 360 ? 14 : 6) - NB - bh - 10,   // just above the navball
+       flash = Math.floor(performance.now()/180) % 2;
+    hx.fillStyle = 'rgba(2,8,16,.72)'; hx.fillRect(bx, by, bw, bh);
+    hx.lineWidth = MS.locked ? 2.5 : 1.5; hx.strokeStyle = MS.locked ? (have ? (flash ? '#ffb347' : '#fb923c') : '#f45') : 'rgba(251,146,60,.55)'; hx.strokeRect(bx, by, bw, bh);
+    if (!MS.locked){ hx.fillStyle = 'rgba(251,146,60,.35)'; hx.fillRect(bx + 2, by + 2, (bw - 4)*f, bh - 4); }
+    else if (ready){ hx.fillStyle = flash ? 'rgba(251,146,60,.5)' : 'rgba(251,146,60,.32)'; hx.fillRect(bx + 2, by + 2, bw - 4, bh - 4); }
+    hx.font = 'bold 14px Consolas,monospace'; hx.textAlign = 'center';
+    hx.fillStyle = MS.locked ? (have ? '#fff4e0' : '#f88') : '#fcd9b0';
+    hx.fillText(label, W/2, by + 20);
+  }
   // aim-lead marker: where to point so shots meet the target (its motion and your drift included).
   // Shown while tracking AND locked, in its own color (white core, gold ring) so it never reads as an enemy.
   if (P.alive && TGT && tp){
@@ -2198,6 +2455,7 @@ function drawHUD(t){
   hx.globalAlpha = 1;
   if (banner){ const a = Math.min(1, banner.life*2, (banner.max-banner.life)*4); hx.globalAlpha = a; hx.font = `bold ${Math.round(30*Math.max(0.55, Math.min(1, H/560)))}px Consolas,monospace`; hx.fillStyle = '#5ff'; hx.shadowColor = '#0ff'; hx.shadowBlur = 18; hx.fillText(banner.t, W/2, Math.max(H*0.22, 78, bossBarBottom + 34)); hx.shadowBlur = 0; hx.globalAlpha = 1; }
   // boundary warning
+  drawHazHUD();
   if (P.pos.length() > R*0.92){ hx.font = 'bold 16px Consolas,monospace'; hx.fillStyle = Math.floor(t*4)%2 ? '#fc4' : '#f84'; hx.fillText('⚠ SECTOR BOUNDARY', W/2, H*0.16); }
   const hs = Math.max(0.58, Math.min(1, H/560)), WW = W/hs; hx.save(); hx.scale(hs, hs);
   // top-left stats
@@ -2283,6 +2541,9 @@ function updateNavball(){
   if (S.radarPick) for (const k of pickups) if (k.type !== 'bit') add(k.g.position, PICKUPS[k.type].c);
   if (boss) add(boss.g.position, 0xff2244, true);
   for (const k of rocks) if (k.hp > 0 && k.g.position.distanceToSquared(P.pos) < 260*260) add(k.g.position, 0x9a7448);   // only nearby rocks
+  for (const b of haz.bins) add(b.g.position, 0xa855f7, true);
+  for (const g of haz.grids) add(g.g.position, g.on ? 0xff2a3a : 0x662030);
+  if (P.inCloud) for (let j=0;j<i;j++) nbBlips[j].position.copy(randDir());   // static scrambles the navball
   if (P.vel.length() > 6){ // prograde: direction you're drifting
     _t.copy(P.vel).normalize().applyQuaternion(qInv);
     const s = nbBlip(i++); s.visible = true; s.position.copy(_t);
