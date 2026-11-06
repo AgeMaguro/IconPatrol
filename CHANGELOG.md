@@ -11,6 +11,9 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.34 - 2026-11-06
+- Fixed: the Recycle Bin often seemed missing. It only spawned in some sectors (a 70% roll that came up less often in testing), and when it did it was usually 900-1300 m away, past the 700 m radar and lost in the fog. Now every sector and free flight gets one, 500-850 m from you. It shows through the fog, always sits on the navball (pinned to the edge when out of radar range), and has a "RECYCLE BIN · 600m" distance label.
+
 ## 1.0.33 - 2026-11-06
 - Recycle Bin is bigger: it starts at 1.6x the size, with pull range 650 (was 480) and core 28 (was 18). It now pulls in and eats viruses, asteroids, pop-up mines, data clouds (squeezed as they fall in) and firewall grids, as well as you, icons and pickups. Everything it eats adds mass and the Bin grows: its look and core go up to 2.2x and its pull range up to 1.5x, with a "THE RECYCLE BIN GROWS" alert. Viruses it eats give +10. Fixed the cut-off "RECYCLE BIN" label.
 

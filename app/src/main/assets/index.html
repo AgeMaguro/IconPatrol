@@ -2603,7 +2603,7 @@ function rockBlocks(b){   // any bullet that hits a rock stops there
 // Seeded with the rocks (seedRocks); none in the boss arena. damage() already skips free flight.
 let haz = {t:0, grids:[], clouds:[], bins:[], streams:[], mines:[], sweep:null, sweepT:50, mineT:0}, hazGroup = null;
 const hzA = V(), hzB = V(), hzQ = new THREE.Quaternion();
-const HZ = {grids:2, clouds:3, binChance:0.7, streams:2, mines:7};
+const HZ = {grids:2, clouds:3, bins:1, streams:2, mines:7};
 function canvasSprite(w, h, draw, height){
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
   const tex = new THREE.CanvasTexture(c), s = new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true, depthWrite:false}));
@@ -2646,7 +2646,10 @@ function makeBin(){
     x.strokeStyle = '#c4b5fd'; x.lineWidth = 4; x.strokeRect(14, 14, 28, 38); x.beginPath(); x.moveTo(8, 14); x.lineTo(48, 14); x.moveTo(22, 8); x.lineTo(34, 8); x.stroke();
     x.font = 'bold 30px Consolas,monospace'; x.fillStyle = '#e9d5ff'; x.fillText('RECYCLE BIN', 62, 44); }, 14);
   lab.position.y = 44; g.add(lab);
-  g.position.copy(hazSpot(560, R*0.6)); hazGroup.add(g);
+  { let p, t = 0; do { p = P.pos.clone().addScaledVector(randDir(), 500 + Math.random()*350); t++; } while (p.length() > R*0.78 && t < 60);
+    if (p.length() > R*0.78) p.setLength(R*0.6); g.position.copy(p); }   // 500-850 m from you: findable, but not on top of you
+  g.traverse(o => { if (o.material) o.material.fog = false; });   // shows through the fog from across the sector
+  hazGroup.add(g);
   haz.bins.push({g, rings, range:BIN_RANGE, core:BIN_CORE, mass:0, told:0, vis:BIN_VIS}); g.scale.setScalar(BIN_VIS);
 }
 // packet stream: a lane of fast data blocks. Crossing it hurts; flying along it gives you a speed boost.
@@ -2686,7 +2689,7 @@ function seedHazards(){
   if (G.cur && G.cur.boss) return;
   for (let i=0;i<HZ.grids;i++) makeGrid();
   for (let i=0;i<HZ.clouds;i++) makeCloud();
-  if (Math.random() < HZ.binChance) makeBin();
+  for (let i=0;i<HZ.bins;i++) makeBin();   // every sector gets one (was a 70% chance)
   for (let i=0;i<HZ.streams;i++) makeStream();
   for (let i=0;i<HZ.mines;i++) makeMine(220);
 }
@@ -2832,6 +2835,10 @@ function updateHazards(dt){
   }
 }
 function drawHazHUD(){
+  for (const b of haz.bins){ const p = project(b.g.position); if (!p) continue; const d = Math.round(b.g.position.distanceTo(P.pos));
+    if (d < b.range*0.35) continue;
+    hx.font = 'bold 12px Consolas,monospace'; hx.textAlign = 'center'; hx.fillStyle = 'rgba(0,6,14,.55)'; const t = `RECYCLE BIN · ${d}m`, tw = hx.measureText(t).width + 12;
+    hx.fillRect(p.x - tw/2, p.y - 46, tw, 17); hx.fillStyle = '#d8b4fe'; hx.fillText(t, p.x, p.y - 33); }
   const lines = [], fl = Math.floor(performance.now()/250) % 2;
   if (P.inCloud){
     for (let i=0;i<7;i++){ hx.fillStyle = Math.random() < 0.5 ? 'rgba(220,60,255,.16)' : 'rgba(60,255,140,.13)'; hx.fillRect(0, Math.random()*H, W, 2 + Math.random()*7); }
@@ -3035,7 +3042,7 @@ function drawGates(gates, isGhost, fade, ap, use){
   }
 }
 const _pp = V(), _pv = V(), _pf = V(), _pr = V(), _pu = V(), _pc = V(), _pq = new THREE.Quaternion(), _pdq = new THREE.Quaternion(), _pe = new THREE.Euler();
-if (window.__IPDEBUG) window.__ip = { startBoss:()=>startBoss(), boss:()=>boss, aim:()=>({TGT, aimHit}), icons:()=>icons, S:()=>S, mouse:()=>mouse, G:()=>G, P:()=>P, viruses:()=>viruses, bullets:()=>bullets, rocks:()=>rocks, haz:()=>haz, startSweep, makeBin, spawnVirus, damage, MS:()=>MS, missiles:()=>missiles, pickups:()=>pickups, V, fwd:()=>fwd, right:()=>right, up:()=>up };
+if (window.__IPDEBUG) window.__ip = { startBoss:()=>startBoss(), boss:()=>boss, aim:()=>({TGT, aimHit}), icons:()=>icons, S:()=>S, mouse:()=>mouse, G:()=>G, P:()=>P, viruses:()=>viruses, bullets:()=>bullets, rocks:()=>rocks, haz:()=>haz, startSweep, makeBin, seedHazards, spawnVirus, damage, MS:()=>MS, missiles:()=>missiles, pickups:()=>pickups, V, fwd:()=>fwd, right:()=>right, up:()=>up };
 function scanTarget(){
   // nearest hostile by angle from the nose: 'near' inside a wide cone, 'locked' inside the firing cone
   let best = null, bestAng = NEAR_ANG;
@@ -3886,8 +3893,8 @@ function updateNavball(){
   qInv.copy(P.q).invert();
   nbInner.quaternion.copy(qInv);
   let i = 0;
-  const add = (pos, color, big) => {
-    _t.copy(pos).sub(P.pos); const d = _t.length(); if (d > S.radar || d < 0.5) return;
+  const add = (pos, color, big, always) => {
+    _t.copy(pos).sub(P.pos); let d = _t.length(); if (d < 0.5 || (d > S.radar && !always)) return; if (d > S.radar) d = S.radar;
     _t.applyQuaternion(qInv).divideScalar(d);
     const s = nbBlip(i++); s.visible = true;
     s.position.copy(_t).multiplyScalar(1.0);
@@ -3900,7 +3907,7 @@ function updateNavball(){
   if (S.radarPick) for (const k of pickups) if (k.type !== 'bit') add(k.g.position, PICKUPS[k.type].c);
   if (boss) add(boss.g.position, 0xff2244, true);
   for (const k of rocks) if (k.hp > 0 && k.g.position.distanceToSquared(P.pos) < 260*260) add(k.g.position, 0x9a7448);   // only nearby rocks
-  for (const b of haz.bins) add(b.g.position, 0xa855f7, true);
+  for (const b of haz.bins) add(b.g.position, 0xa855f7, true, true);   // always on the navball, even beyond radar range
   for (const g of haz.grids) add(g.g.position, g.on ? 0xff2a3a : 0x662030);
   if (P.inCloud) for (let j=0;j<i;j++) nbBlips[j].position.copy(randDir());   // static scrambles the navball
   if (P.vel.length() > 6){ // prograde: direction you're drifting
