@@ -1,0 +1,128 @@
+
+<canvas id="c"></canvas>
+<div id="toast"></div>
+<div id="rotateHint">↻ Turn your phone sideways for the best view</div>
+<div id="touch">
+  <div id="zoneL"></div>
+  <div id="stickHint">Drag here to steer.<br>Push far to thrust.</div>
+  <div id="stickBase"><div id="stickKnob"></div></div>
+  <div class="tpad">
+    <div class="tb boost" data-k="boost">BOOST</div>
+    <div class="tb big fire" data-k="fire">FIRE</div>
+  </div>
+  <div class="ttop"><div class="tt" id="tAuto">AUTO-FIRE ON</div><div class="tt" id="tMap">MAP</div><div class="tt" id="tPause">❚❚</div></div>
+</div>
+
+<div class="overlay show" id="title">
+  <div class="panel">
+    <h1>ICON PATROL</h1>
+    <p class="sub">Something has gotten into your drive. Viruses are loose in your folders, infecting your files. Fly in, rescue clean icons by flying into them, and blast infected ones until they're clean again. Clear enough sectors and the Demon's Gate opens.</p>
+    <div class="btns">
+      <label class="btn webOnly" for="dirInput">Scan a real folder…</label>
+      <input type="file" id="dirInput" webkitdirectory directory multiple accept="inode/directory">
+      <label class="btn touchOnly" for="filesInput">Pick files from phone…</label>
+      <input type="file" id="filesInput" multiple>
+      <button class="alt" id="demoBtn">Play the demo drive</button>
+      <button class="alt touchOnly webOnly" id="fsBtn">Fullscreen</button>
+      <button class="alt" id="setBtn">⚙ Settings</button>
+      <button class="alt appOnly" id="updBtn">⬆ Check for updates</button>
+      <button class="alt pcOnly" id="exitBtn">⏻ Exit</button>
+    </div>
+    <p class="note appOnly" id="updNote"></p>
+    <div class="keys">
+      <b>← → / A D</b><span>rotate</span>
+      <b>↑ / W</b><span>thrust</span>
+      <b>Space</b><span>fire</span>
+      <b>Shift (hold)</b><span>boost: burns the boost meter; ramming viruses while boosting destroys them</span>
+      <b>P / Esc</b><span>pause menu (settings, leave sector)</span>
+      <b>M</b><span>mute</span>
+    </div>
+    <div class="keys" style="margin-top:14px">
+      <b>🎮 Left stick / D-pad</b><span>rotate (push up to thrust)</span>
+      <b>A / RT</b><span>thrust</span>
+      <b>X / RB</b><span>fire</span>
+      <b>B / LT</b><span>boost</span>
+      <b>Start</b><span>pause · in menus: D-pad to move, A to select</span>
+      <b>Back / View</b><span>abort sector</span>
+    </div>
+    <p class="note touchOnly" style="color:#9cd;font-size:13px">📱 <b>Touch:</b> drag anywhere on the left side to point your ship (push the stick far to thrust). Hold FIRE and BOOST on the right. Auto-fire shoots when a virus or infected icon is in front of you. Turn your phone sideways.</p>
+    <div class="legend">
+      <span style="--c:#4ade80">clean icon: fly into it to rescue (+100)</span>
+      <span style="--c:#ff3355">infected icon: shoot to cleanse (+50)</span>
+      <span style="--c:#e040fb">virus: shoot it (+25)</span>
+    </div>
+    <div class="pk">
+      <span><b style="background:#5ff">◆</b>bits: currency for upgrades</span>
+      <span><b style="background:#4ade80">+</b>patch: repair shield</span>
+      <span><b style="background:#fbbf24">»</b>RAM: refill boost</span>
+      <span><b style="background:#60a5fa">W</b>wide shot (10s)</span>
+      <span><b style="background:#fb923c">R</b>rapid fire (10s)</span>
+      <span><b style="background:#c084fc">F</b>firewall: invincible (6s)</span>
+      <span><b style="background:#f9a8d4">1UP</b>extra life</span>
+    </div>
+    <p class="note">Your files never leave your computer. The game only reads file names and types to build levels, and makes thumbnails of your images right here in the browser. Shooting a <i>clean</i> icon "deletes" it in the game (−25 points). Nothing on your disk is touched.</p>
+    <p class="note" id="hiNote"></p>
+  </div>
+</div>
+
+<div class="overlay" id="map">
+  <div class="panel">
+    <h2 id="mapTitle">DRIVE MAP</h2>
+    <div class="stats"><div>SHIP <b id="mShip">-</b></div><div>SCORE <b id="mScore">0</b></div><div>LIVES <b id="mLives">3</b></div><div>CLEAN <b id="mClean">0</b></div></div>
+    <div class="sectors" id="sectors"></div>
+    <div class="shopHead"><h2 style="margin:0">SHIP UPGRADES</h2><div class="bits">◆ <b id="mBits">0</b> bits</div></div>
+    <div class="shop" id="shop"></div>
+    <div class="btns"><button class="alt" id="quitBtn">Quit to title</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="hangar">
+  <div class="panel wide">
+    <h2>CHOOSE YOUR SHIP</h2>
+    <div class="hangar">
+      <div class="hangarLeft">
+        <div class="shipList" id="shipList"></div>
+        <div class="btns"><button id="launchBtn">🚀 Launch</button><button class="alt" id="hangarBack">Back</button></div>
+      </div>
+      <div>
+        <div class="shipHead">
+          <canvas id="shipPrev" width="440" height="244"></canvas>
+          <h3 id="shipName"></h3>
+          <p class="tagl" id="shipTag"></p>
+          <p class="sub" style="margin:0 0 8px" id="shipDesc"></p>
+        </div>
+        <div id="shipStats"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="pause">
+  <div class="panel narrow">
+    <h2>PAUSED</h2>
+    <div class="menu">
+      <button id="pResume">▶ Resume</button>
+      <button class="alt" id="pSettings">⚙ Settings</button>
+      <button class="alt" id="pMap">Leave sector (drive map)</button>
+      <button class="alt" id="pQuit">Quit to title</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="settings">
+  <div class="panel narrow">
+    <h2>SETTINGS</h2>
+    <div class="setlist" id="setList"></div>
+    <div class="btns"><button id="sBack">Back</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="end">
+  <div class="panel">
+    <h1 id="endTitle">GAME OVER</h1>
+    <p class="sub" id="endText"></p>
+    <div class="btns"><button id="againBtn">Back to title</button></div>
+  </div>
+</div>
+
+

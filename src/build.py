@@ -1,18 +1,32 @@
 import os, re
 SRC = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(SRC)
-def parts(html):
-    style = re.search(r'<style>(.*?)</style>', html, re.S).group(1)
-    body = re.search(r'<body>(.*)</body>', html, re.S).group(1)
-    scripts = re.findall(r'<script>(.*?)</script>', body, re.S)
-    markup = re.sub(r'<script>.*?</script>', '', body, flags=re.S)
-    return style, markup, scripts
-d2 = open(os.path.join(SRC,'game2d.html')).read()
-d3 = open(os.path.join(SRC,'game3d.html')).read()
-three = open(os.path.join(SRC,'vendor','three.min.js')).read().replace('</script', '<\\/script')
-s2, m2, sc2 = parts(d2)
-s3, m3, sc3 = parts(d3)
-assert len(sc2) == 1 and len(sc3) == 2 and sc3[0].strip() == '/*THREE*/'
+# Each mode is built from small part files, joined in this order (see src/MAP.md).
+# The JS parts are glued back into ONE script per mode (plain text join: no modules, no wrappers),
+# so the game's scope and the launcher below work exactly as with the old single-file sources.
+MODES = {
+  '2d': dict(css=['2d/style.css'], markup='2d/markup.html', js=[
+    '2d/01-setup.js', '2d/02-storage-files.js', '2d/03-state-ships-hangar.js', '2d/04-input-menus-touch.js',
+    '2d/05-gamepad-updates.js', '2d/06-update.js', '2d/07-draw.js', '2d/08-feed.js', '2d/09-hud-loop.js']),
+  '3d': dict(css=['3d/style.css'], markup='3d/markup.html', js=[
+    '3d/01-setup.js', '3d/02-storage-audio.js', '3d/03-files-drives.js', '3d/04-upgrades-ships.js',
+    '3d/05-helpers-navball.js', '3d/06-state-hangar.js', '3d/07-freeflight.js', '3d/08-input.js',
+    '3d/09-menus-touch.js', '3d/10-throttle-updates.js', '3d/11-asteroids.js', '3d/12-hazards.js',
+    '3d/13-hazards-update.js', '3d/14-combat-missiles.js', '3d/15-flight-aim.js', '3d/16-update.js',
+    '3d/17-camera-cockpit.js', '3d/18-feed.js', '3d/19-hud.js', '3d/20-loop.js']),
+}
+read = lambda p: open(os.path.join(SRC, p)).read()
+def mode_parts(m):
+    spec = MODES[m]
+    for p in spec['css'] + [spec['markup']] + spec['js']: assert os.path.isfile(os.path.join(SRC, p)), 'missing part ' + p
+    style = ''.join(read(p) for p in spec['css'])
+    markup = read(spec['markup'])
+    js = ''.join(read(p) for p in spec['js'])
+    assert '<script' not in markup and '</style' not in style, m
+    return style, markup, js
+three = read(os.path.join('vendor', 'three.min.js')).replace('</script', '<\\/script')
+s2, m2, js2 = mode_parts('2d')
+s3, m3, js3 = mode_parts('3d')
 SW = lambda cur: ('<div class="modeSw">GAME MODE '
   f'<button class="{"" if cur=="2d" else "alt"}" data-mode="2d">2D classic</button>'
   f'<button class="{"" if cur=="3d" else "alt"}" data-mode="3d">3D space</button></div>')
@@ -23,7 +37,7 @@ SWCSS = """
   .modeSw{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 16px;font-size:12px;color:#7ab;letter-spacing:1px}
   .modeSw button{font-size:13px;padding:7px 14px}
 """
-for x in (sc2[0], sc3[1]): assert '</script' not in x
+for x in (js2, js3): assert '</script' not in x
 out = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -35,9 +49,9 @@ out = f"""<!DOCTYPE html>
 <body>
 <template id="tpl2d"><style>{s2}{SWCSS}</style>{m2}</template>
 <template id="tpl3d"><style>{s3}{SWCSS}</style>{m3}</template>
-<script type="text/plain" id="code2d">{sc2[0]}</script>
+<script type="text/plain" id="code2d">{js2}</script>
 <script type="text/plain" id="code3dlib">{three}</script>
-<script type="text/plain" id="code3d">{sc3[1]}</script>
+<script type="text/plain" id="code3d">{js3}</script>
 <script>
 (() => {{
   // One file, two games. Switching tears the current game down and mounts the other in place (no page reload,
