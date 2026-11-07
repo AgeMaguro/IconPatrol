@@ -1340,9 +1340,15 @@ function makeBin(){
   hazGroup.add(g);
   haz.bins.push({g, rings, halo, photon, spin:0, range:BIN_RANGE, core:BIN_CORE, mass:0, told:0, vis:BIN_VIS}); g.scale.setScalar(BIN_VIS);
 }
-// escape velocity from distance d, worked out from the Bin's real pull a(x) = 8 + 150(1 - x/range)^3:
-// v_esc = sqrt(2 * integral from d to range of a) = sqrt(2 * (8(range-d) + 37.5 range k^4)), k = 1 - d/range
-function binVesc(b, d){ if (d >= b.range) return 0; const k = 1 - d/b.range; return Math.sqrt(2*(8*(b.range - d) + 37.5*b.range*k*k*k*k)); }
+// Bin gravity is inverse-square, like a real black hole: a(d) = BIN_AH * (horizon/d)^2, so it's BIN_AH right at the
+// event horizon, 4x weaker at twice that distance, and barely there at the edge of its range. Capped at BIN_AMAX
+// (only reached inside the horizon) so nothing goes infinite at the core.
+const BIN_AH = 290, BIN_AMAX = 600;
+function binAcc(b, d){ return Math.min(BIN_AMAX, BIN_AH*b.horizon*b.horizon/(d*d)); }
+// escape velocity from distance d: v_esc = sqrt(2 * integral from d to range of a(x)).
+// Uncapped part: BIN_AH h^2 (1/d - 1/range). Inside the cap radius dc the pull is flat BIN_AMAX.
+function binVesc(b, d){ if (d >= b.range) return 0; const h2 = BIN_AH*b.horizon*b.horizon, dc = Math.sqrt(h2/BIN_AMAX);
+  const I = d >= dc ? h2*(1/d - 1/b.range) : BIN_AMAX*(dc - d) + h2*(1/dc - 1/b.range); return Math.sqrt(2*Math.max(0, I)); }
 // packet stream: a lane of fast data blocks. Crossing it hurts; flying along it gives you a speed boost.
 const PK_EDGE = new THREE.EdgesGeometry(new THREE.BoxGeometry(3.4, 3.4, 7));
 function makeStream(){
@@ -1454,7 +1460,7 @@ function updateHazards(dt){
     b.range = BIN_RANGE*(1 + 0.12*sq); b.core = BIN_CORE*gf; b.horizon = b.core*HORIZON_K;
     { const dd = b.g.position.distanceTo(P.pos); if (dd < b.range*1.6 && (!P.nearBin || dd < P.nearD)){ P.nearBin = b; P.nearD = dd; } }
     b.vis += (BIN_VIS*gf - b.vis)*Math.min(1, dt*2); b.g.scale.setScalar(b.vis);   // grows smoothly
-    const pull = (pos, mul) => { hzA.copy(b.g.position).sub(pos); const d = hzA.length(); if (d > b.range || d < 0.1) return -1; const k = 1 - d/b.range; hzA.divideScalar(d).multiplyScalar(mul*(8 + 150*k*k*k)); return d; };
+    const pull = (pos, mul) => { hzA.copy(b.g.position).sub(pos); const d = hzA.length(); if (d > b.range || d < 0.1) return -1; hzA.divideScalar(d).multiplyScalar(mul*binAcc(b, d)); return d; };
     // things without their own velocity (or whose AI keeps resetting it) get a separate drift toward the Bin
     const drag = (o, pos, mul) => { const d = pull(pos, mul); if (!o.binV) o.binV = V();
       if (d < 0){ o.binV.multiplyScalar(Math.pow(0.4, dt)); if (o.binV.lengthSq() > 0.01) pos.addScaledVector(o.binV, dt); return -1; }

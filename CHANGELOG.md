@@ -11,6 +11,15 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.39 - 2026-11-06
+- Recycle Bin gravity is inverse-square now, like a real black hole: pull = 290 x (horizon / distance)^2, capped at
+  600 (only inside the horizon). A fresh Bin pulls 3.6 at the edge of its range (was 8), 15 halfway (was 27),
+  73 at twice the horizon and 290 at the horizon (was ~113). Far out it barely tugs; close in it ramps up fast.
+- Escape velocity in the GRAVITY WELL panel uses the matching closed form (`binAcc` / `binVesc` in game3d.html).
+  At the horizon of a fresh Bin it's ~194 (about the same as before); bigger Bins get much stiffer
+  (mass 42: 331, mass 400: 499), so a fed Bin is harder to boost away from.
+- Things drift in from the edges more slowly, so the Bin feeds a little slower early on.
+
 ## 1.0.38 - 2026-11-06
 - Recycle Bin size has no limit now. Each meal adds a little less as it gets bigger (square-root growth: mass 42 -> core 3.3x and pull 1,170 m; mass 100 -> 4.5x and 1,430 m; mass 400 -> 8x, pull 2,210 m, past the arena edge), so in a long sector it can eventually swallow everything.
 - Left unfed, it evaporates (Hawking radiation): 5 s after its last meal it starts losing mass, a bit faster the bigger it is, and shrinks back.
