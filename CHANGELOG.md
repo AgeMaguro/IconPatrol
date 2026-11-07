@@ -11,6 +11,19 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.40 - 2026-11-06
+- 3D sectors now have a Sector Gate (`makeExitGate` / `openExitGate` / `updateExitGate` / `drawExitMarker` in
+  game3d.html, kept in `haz.exit`). You start inside it, nose toward the middle of the sector (~30° off the Bin).
+  It's placed at 0.8 x the arena radius straight opposite the Recycle Bin, the farthest spot from it.
+  Rocks, mines, clouds and firewall grids that spawn near it are moved away.
+- Clearing every wave no longer ends the sector: 2.4 s after "SECTOR CLEAN" the gate turns from amber to green
+  ("RETURN TO THE SECTOR GATE") and you have to fly back through it. The sector-clear rewards and resupply
+  happen when you exit. Flying through while it's locked shows "GATE LOCKED · clean the sector first".
+  You have to leave the doorway (more than 115 m) once before an exit counts.
+- HUD: a diamond and "GATE/EXIT xxx m" on the gate; once open, an edge arrow points to it when it's off screen.
+  The navball shows the gate (dim gold while locked; a big white dot once open, beyond radar range too).
+- Free flight and the Demon's Gate boss fight have no exit gate. 2D mode is unchanged.
+
 ## 1.0.39 - 2026-11-06
 - Recycle Bin gravity is inverse-square now, like a real black hole: pull = 290 x (horizon / distance)^2, capped at
   600 (only inside the horizon). A fresh Bin pulls 3.6 at the edge of its range (was 8), 15 halfway (was 27),
