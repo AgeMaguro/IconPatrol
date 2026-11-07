@@ -56,7 +56,7 @@ function drawGates(gates, isGhost, fade, ap, use){
   }
 }
 const _pp = V(), _pv = V(), _pf = V(), _pr = V(), _pu = V(), _pc = V(), _pq = new THREE.Quaternion(), _pdq = new THREE.Quaternion(), _pe = new THREE.Euler();
-if (window.__IPDEBUG) window.__ip = { startBoss:()=>startBoss(), boss:()=>boss, aim:()=>({TGT, aimHit}), icons:()=>icons, S:()=>S, mouse:()=>mouse, G:()=>G, P:()=>P, viruses:()=>viruses, bullets:()=>bullets, rocks:()=>rocks, haz:()=>haz, startSweep, makeBin, seedHazards, binVesc, spawnVirus, damage, MS:()=>MS, missiles:()=>missiles, pickups:()=>pickups, V, fwd:()=>fwd, right:()=>right, up:()=>up };
+if (window.__IPDEBUG) window.__ip = { startBoss:()=>startBoss(), boss:()=>boss, aim:()=>({TGT, aimHit}), icons:()=>icons, S:()=>S, mouse:()=>mouse, G:()=>G, P:()=>P, viruses:()=>viruses, bullets:()=>bullets, rocks:()=>rocks, haz:()=>haz, startSweep, makeBin, seedHazards, binVesc, spawnVirus, spawnEnemy, enemyScale, EN_DEF, damage, MS:()=>MS, missiles:()=>missiles, pickups:()=>pickups, V, fwd:()=>fwd, right:()=>right, up:()=>up };
 function scanTarget(){
   // nearest hostile by angle from the nose: 'near' inside a wide cone, 'locked' inside the firing cone
   let best = null, bestAng = NEAR_ANG;
@@ -67,7 +67,7 @@ function scanTarget(){
     const ang = Math.min(_t.divideScalar(d).angleTo(fwd), _t2.lengthSq() > 1 ? _t2.angleTo(fwd) : 9);
     if (ang < bestAng){ bestAng = ang; best = {pos, vel, d, ang, label}; }
   };
-  for (const v of viruses) consider(v.g.position, v.vel, v.label || 'VIRUS');
+  for (const v of viruses) if (!v.hidden) consider(v.g.position, v.vel, v.label || 'VIRUS');
   for (const ic of icons) if (ic.infected) consider(ic.g.position, ic.vel, short(ic.f.name));
   if (boss) consider(boss.g.position, boss.vel, 'INNER DEMON');
   if (best) best.locked = best.ang < LOCK_ANG();
@@ -86,7 +86,7 @@ function aimDir(origin, baseDir){
     const ang = Math.min(_t.divideScalar(d).angleTo(baseDir), _t2.lengthSq() > 1 ? _t2.angleTo(baseDir) : 9);
     if (ang < bestAng){ bestAng = ang; best = {pos, vel, d}; }
   };
-  for (const v of viruses) consider(v.g.position, v.vel);
+  for (const v of viruses) if (!v.hidden) consider(v.g.position, v.vel);
   for (const ic of icons) if (ic.infected) consider(ic.g.position, ic.vel);
   if (boss) consider(boss.g.position, boss.vel);
   aimHit = !!best; aimDist = best ? best.d : 320;

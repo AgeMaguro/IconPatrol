@@ -1,5 +1,5 @@
 // ---------- game state ----------
-let S = stats(), P, bullets=[], icons=[], viruses=[], pickups=[], msgs=[], timers=[], boss=null, banner=null, waveNo=0, queue=[], virusT=2.5, cacheT=14;
+let S = stats(), P, bullets=[], icons=[], viruses=[], pickups=[], msgs=[], timers=[], boss=null, banner=null, waveNo=0, queue=[], virusT=2.5, cacheT=14, enT=0, enNext=14;
 const fwd = V(), up = V(), right = V(), qInv = new THREE.Quaternion();
 
 function clearField(){
@@ -18,7 +18,7 @@ function resetField(){
   P.hull = R0 ? Math.min(S.maxHull, R0.hull + S.hullFix) : S.maxHull; P.ammo = R0 ? Math.min(S.maxAmmo, R0.ammo) : S.maxAmmo;
   P.fuel = R0 ? Math.min(S.maxFuel, R0.fuel) : S.maxFuel; P.msl = R0 ? Math.min(S.maxMsl, R0.msl) : S.maxMsl;
   MS.tgt = null; MS.t = 0; MS.locked = false; MS.cool = 0; MS.prev = false; P.warned = {};
-  waveNo = 0; virusT = 2.5; cacheT = 12 + Math.random()*6; gateSm.coast = gateSm.ghost = null; throttle = 0; mouse.dx = mouse.dy = mouse.sx = mouse.sy = 0; effThr = 0; TGT = null; wasLocked = false; CK.x = CK.y = CK.r = 0;
+  waveNo = 0; enT = 0; enNext = enemyMode === 'all' ? 8 : 14; virusT = 2.5; cacheT = 12 + Math.random()*6; gateSm.coast = gateSm.ghost = null; throttle = 0; mouse.dx = mouse.dy = mouse.sx = mouse.sy = 0; effThr = 0; TGT = null; wasLocked = false; CK.x = CK.y = CK.r = 0;
   ship.position.copy(P.pos); ship.quaternion.copy(P.q); camera.position.copy(P.pos).add(V(0,4,16)); camera.quaternion.copy(P.q);
   seedRocks();
 }

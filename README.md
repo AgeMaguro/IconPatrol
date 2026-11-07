@@ -29,6 +29,9 @@ Files you scan or pick never leave the device. The app has no internet permissio
     per mode (no ES modules, no wrapper functions): the first part opens the game's `(() => {` scope and the last
     closes it, so all parts share one scope and order matters for `const`/`let`. New part files must be added to
     `MODES` (the build fails if a file in `2d/`, `3d/` or `shared/` isn't listed).
+- Enemy ships (3D only) are in `src/3d/14b-enemies.js`: `EN_DEF` (types), `EN_GUN` (guns), `enemyScale()` / `enemyLevel()`
+  (difficulty hook), `enemyDirector()` (spawning), `EN_UPDATE.<kind>` (one behaviour function per type). They are entries
+  in `viruses` with `ai:true`; `v.hidden` keeps cloaked/disguised ones out of lock-on, aim assist, HUD and radar.
 - The build combines both modes plus `src/vendor/three.min.js` (three.js r149, MIT) into one file and writes it to
   both places.
 - One-file launcher (in `src/build.py`): only the chosen mode is mounted; switching mode tears the old one down
@@ -52,6 +55,6 @@ Files you scan or pick never leave the device. The app has no internet permissio
   installs as an update. It's public on purpose: this is a personal hobby app, not for the Play Store. (Builds
   1.0.1-1.0.3 used a different key, so going from those to 1.0.11 needs one uninstall.)
 - Saved data (localStorage): `iconpatrol.mode`, `iconpatrol.hi`, `iconpatrol3d.hi`, `iconpatrol3d.view`,
-  `iconpatrol3d.flight2` (default drift), `iconpatrol3d.inv`, `iconpatrol.autofire`, `iconpatrol.muted`.
+  `iconpatrol3d.flight2` (default drift), `iconpatrol3d.enemies` (gentle/all/off), `iconpatrol3d.inv`, `iconpatrol.autofire`, `iconpatrol.muted`.
 - Testing: Playwright works for both modes in this repo's cloud sessions (`--use-gl=swiftshader` for 3D). In 3D,
   setting `window.__IPDEBUG = true` before load exposes `window.__ip` (player, icons, viruses...) for tests.

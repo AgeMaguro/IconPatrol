@@ -34,7 +34,7 @@ const MS = {tgt:null, t:0, locked:false, cool:0, prev:false}, MSL_ANG = 0.75, MS
 const MG = new THREE.ConeGeometry(0.7, 3.2, 6); MG.rotateX(-Math.PI/2);
 function hostiles(){
   const out = [];
-  for (const v of viruses) if (v.hp > 0) out.push({obj:v, pos:v.g.position, vel:v.vel, r:10});
+  for (const v of viruses) if (v.hp > 0 && !v.hidden) out.push({obj:v, pos:v.g.position, vel:v.vel, r:v.r || 10});
   for (const ic of icons) if (ic.infected && !ic.dead) out.push({obj:ic, pos:ic.g.position, vel:ic.vel, r:14});
   if (boss) out.push({obj:boss, pos:boss.g.position, vel:boss.vel, r:38});
   return out;
@@ -101,6 +101,7 @@ function updateMissiles(dt){
   missiles = missiles.filter(m => { if (m.life <= 0){ scene.remove(m.g); return false; } return true; });
 }
 function killVirus(v, rammed){
+  if (v.ai) return killEnemy(v);
   burst(v.g.position, '#e040fb', 22, 40); addScore(25);
   msg(rammed ? 'RAMMED +25' : '+25', v.g.position, '#e9f'); SFX.boom();
   dropAt(v.g.position, 1 + (Math.random() < 0.4 ? 1 : 0), 0.12);

@@ -16,7 +16,7 @@ MODES = {
     '3d/05-helpers-navball.js', '3d/06-state-hangar.js', '3d/07-freeflight.js', '3d/08-input.js',
     '3d/09a-overlays-settings.js', 'shared/settings.js', '3d/09b-menus-touch.js',
     '3d/10a-throttle-map.js', 'shared/buttons-updates.js', '3d/10b-pause-buttons.js',
-    '3d/11-asteroids.js', '3d/12-hazards.js', '3d/13-hazards-update.js', '3d/14-combat-missiles.js',
+    '3d/11-asteroids.js', '3d/12-hazards.js', '3d/13-hazards-update.js', '3d/14-combat-missiles.js', '3d/14b-enemies.js',
     '3d/15-flight-aim.js', '3d/16-update.js', '3d/17-camera-cockpit.js', 'shared/feed.js',
     '3d/19-hud.js', '3d/20-loop.js']),
 }

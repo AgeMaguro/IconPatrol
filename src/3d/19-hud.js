@@ -15,10 +15,15 @@ function drawHUD(t){
   for (const ic of icons){
     const p = project(ic.g.position); if (!p) continue;
     const d = ic.g.position.distanceTo(camera.position), s = Math.max(9, Math.min(40, 900/d));
-    bracket(p.x, p.y, s, ic.infected ? '#ff4466' : '#4ade80', d < 260 ? short(ic.f.name) + (ic.infected ? ' ⚠' : '') : (d < 600 ? Math.round(d)+'m' : null));
+    bracket(p.x, p.y, s, ic.infected ? '#ff4466' : ic.held ? '#fbbf24' : '#4ade80', d < 260 ? short(ic.f.name) + (ic.infected ? ' ⚠' : ic.held ? ' ⚑ STOLEN' : '') : (d < 600 ? Math.round(d)+'m' : null));
   }
-  for (const v of viruses){ const p = project(v.g.position); if (!p) continue; const d = v.g.position.distanceTo(camera.position); if (d > 500) continue;
-    hx.strokeStyle = '#e040fb'; hx.lineWidth = 1.5; const s = Math.max(6, Math.min(26, 500/d)); hx.beginPath(); hx.moveTo(p.x, p.y-s); hx.lineTo(p.x+s, p.y); hx.lineTo(p.x, p.y+s); hx.lineTo(p.x-s, p.y); hx.closePath(); hx.stroke(); }
+  for (const v of viruses){ if (!v.disguised) continue;   // a Trojan draws exactly like a clean icon
+    const p = project(v.g.position); if (!p) continue;
+    const d = v.g.position.distanceTo(camera.position), s = Math.max(9, Math.min(40, 900/d));
+    bracket(p.x, p.y, s, '#4ade80', d < 260 ? short(v.fname) : (d < 600 ? Math.round(d)+'m' : null)); }
+  for (const v of viruses){ if (v.hidden) continue; const p = project(v.g.position); if (!p) continue; const d = v.g.position.distanceTo(camera.position); if (d > 500) continue;
+    hx.strokeStyle = v.col || '#e040fb'; hx.lineWidth = 1.5; const s = Math.max(6, Math.min(26, 500/d)); hx.beginPath(); hx.moveTo(p.x, p.y-s); hx.lineTo(p.x+s, p.y); hx.lineTo(p.x, p.y+s); hx.lineTo(p.x-s, p.y); hx.closePath(); hx.stroke();
+    if (v.ai && v.kind !== 'bot' && v.kind !== 'popup' && d < 420){ hx.fillStyle = v.col; hx.font = 'bold 10px Consolas,monospace'; hx.textAlign = 'center'; hx.fillText(v.label + (v.max > 3 ? ' ' + Math.max(0, v.hp) + '/' + v.max : ''), p.x, p.y - s - 5); } }
   for (const k of pickups){ if (k.type === 'bit') continue; const p = project(k.g.position); if (!p) continue; const d = k.g.position.distanceTo(camera.position); if (d > 300) continue;
     hx.fillStyle = PICKUPS[k.type].c; hx.font = 'bold 10px Consolas,monospace'; hx.textAlign = 'center'; hx.fillText(PICKUPS[k.type].name, p.x, p.y - Math.max(10, 300/d)); }
   if (boss){ const p = project(boss.g.position); if (p) bracket(p.x, p.y, Math.max(30, Math.min(120, 6000/boss.g.position.distanceTo(camera.position))), '#ff3355', 'INNER DEMON'); }
@@ -248,7 +253,7 @@ function updateNavball(){
     const sz = (big ? 0.2 : 0.085) + (1 - d/S.radar)*0.07; s.scale.set(sz, sz, 1);
   };
   for (const ic of icons) add(ic.g.position, ic.infected ? 0xff3355 : 0x4ade80);
-  for (const v of viruses) add(v.g.position, 0xe040fb);
+  for (const v of viruses){ if (v.disguised) add(v.g.position, 0x4ade80); else if (!v.hidden) add(v.g.position, v.nb || 0xe040fb); }   // Trojans pose as clean icons; cloaked Rootkits don't show
   if (S.radarPick) for (const k of pickups) if (k.type !== 'bit') add(k.g.position, PICKUPS[k.type].c);
   if (boss) add(boss.g.position, 0xff2244, true);
   for (const k of rocks) if (k.hp > 0 && k.g.position.distanceToSquared(P.pos) < 260*260) add(k.g.position, 0x9a7448);   // only nearby rocks

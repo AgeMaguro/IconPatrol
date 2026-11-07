@@ -7,6 +7,10 @@ function showInv(){ renderSettings(); }
 function showView(){ renderSettings(); const t = document.getElementById('tView'); if (t) t.textContent = fpv ? 'VIEW: 1ST' : 'VIEW: 3RD'; }
 const FLIGHT_MODES = ['assist','coord','drift'], FLIGHT_NAME = {assist:'Assist', coord:'Coordinated', drift:'Pure drift'};
 let flightMode = FLIGHT_MODES.includes(lsGet('iconpatrol3d.flight2')) ? lsGet('iconpatrol3d.flight2') : 'drift';   // default: pure drift (assist/coordinated need more tuning)
+// enemy ships (14b-enemies.js): off = viruses only; gentle (default) = new types join as you clear sectors; all = every type from the start
+const ENEMY_MODES = ['gentle','all','off'], ENEMY_NAME = {gentle:'Gentle (grows)', all:'All types', off:'Off'};
+let enemyMode = ENEMY_MODES.includes(lsGet('iconpatrol3d.enemies')) ? lsGet('iconpatrol3d.enemies') : 'gentle';
+function cycleEnemies(){ enemyMode = ENEMY_MODES[(ENEMY_MODES.indexOf(enemyMode)+1) % 3]; lsSet('iconpatrol3d.enemies', enemyMode); renderSettings(); if (G.state === 'play') toast('Enemy ships: ' + ENEMY_NAME[enemyMode] + ' · applies from the next sector'); }
 function showFlight(){ renderSettings(); const t = document.getElementById('tFlight'); if (t) t.textContent = 'FLT: ' + FLIGHT_NAME[flightMode].split(' ').pop().toUpperCase(); }
 function cycleFlight(){ flightMode = FLIGHT_MODES[(FLIGHT_MODES.indexOf(flightMode)+1) % 3]; lsSet('iconpatrol3d.flight2', flightMode); showFlight();
   if (G.state === 'play') toast({assist:'Flight: ASSIST · bank to turn, momentum follows the nose', coord:'Flight: COORDINATED · turns bank automatically, ship drifts', drift:'Flight: PURE DRIFT · no assists'}[flightMode]); }

@@ -11,6 +11,27 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.42 - 2026-11-06 (3D only)
+- **Enemy ships that fight back** (`src/3d/14b-enemies.js`): nine AI types that can hurt and kill you. All of them live in the
+  `viruses` list (`ai:true`, `kind`), so shots, missiles, radar and the sector-clear sweep already handle them.
+  - Worm Fighter: circles you at range and fires 3-shot bursts; jinks when you lock a missile on it; breaks off at 1 HP.
+  - Wingmen (pair): one circles, one swings round behind you, they fire out of step; the survivor gets angrier.
+  - Trojan: looks exactly like a clean icon (same picture and name as a real file, green bracket, green radar dot, not
+    lockable). Flips into a bomb when you get within ~95 m, shoot it, or after 45 s, then rushes you and explodes.
+  - Botnet swarm: 6 tiny flocking drones (boids) with a weak popgun; they pop on contact for a little damage.
+  - Ransomware Lancer: stops and charges (warning beam shows the path), then dashes in a straight line, then is helpless.
+  - Adware Carrier: big and slow; launches up to 3 pop-up drones that chase you and burst on contact. Killing it kills them.
+  - Spyware Sniper: long range; aims with a red beam that brightens, then fires one fast heavy bolt where the beam points.
+  - Rootkit Hunter: cloaked (no lock-on, no radar, nearly invisible) until it fades in for a burst of fire.
+  - Defender: steals the nearest clean icon and hauls it to the sector edge (deleted if it gets there, -25). Shoot the
+    Defender to drop the icon, or touch the icon yourself to rescue it.
+- Settings: new **Enemy ships** option (storage key `iconpatrol3d.enemies`): Gentle (default) = types unlock gradually
+  (worms first; heat = 1.5 x sectors cleared + 0.5 x waves in the sector); All types = everything from the start (for testing);
+  Off = viruses only. A sector begins quiet (first enemy after ~14 s) and enemies stop when the sector is clean.
+- Difficulty hooks for later: `enemyLevel()` (returns 0 now) feeds `enemyScale()` (hp, damage, aim error, fire rate, speed,
+  spawn budget, spawn rate); `EN_DEF` and `EN_GUN` hold per-type numbers. No enemy ships in Free flight, the boss fight or 2D.
+- Enemy bullets can now carry their own damage (`b.dmg`) and hit radius (`b.hr2`); the boss/icon bullets are unchanged.
+
 ## 1.0.41 - 2026-11-06 (source refactor, no gameplay change)
 - `src/game2d.html` and `src/game3d.html` are split into small part files in `src/2d/`, `src/3d/` and `src/shared/`
   (see `src/MAP.md`). `build.py` joins them back into one script per mode, in the same order as before.

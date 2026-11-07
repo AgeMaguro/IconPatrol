@@ -162,10 +162,10 @@ function update(dt){
 
   updateMissiles(dt);
   // ---- virus spawning ----
-  const maxV = boss ? 7 : 2 + Math.min(6, diff);
+  const maxV = boss ? 7 : 2 + Math.min(6, diff), nV = viruses.reduce((n, v) => n + (v.ai ? 0 : 1), 0);   // enemy ships (ai) have their own budget
   virusT -= dt;
   if (G.cur.free){ if (viruses.length < FREE_DRONES && virusT <= 0){ virusT = 2.5; spawnDrone(false); } }
-  else if (!boss && virusT <= 0 && viruses.length < maxV && icons.some(i => !i.infected)){
+  else if (!boss && virusT <= 0 && nV < maxV && icons.some(i => !i.infected)){
     virusT = Math.max(1.3, 4 - diff*0.33) * (0.7+Math.random()*0.6);
     // spawn a little way off from a random clean icon, so the fight stays where the files are
     const clean = icons.filter(i => !i.infected); const anchor = clean[Math.floor(Math.random()*clean.length)];
@@ -173,8 +173,10 @@ function update(dt){
     if (at.length() > R*0.95) at.setLength(R*0.95);
     spawnVirus(at);
   }
+  enemyDirector(dt);
   // ---- viruses ----
   for (const v of viruses){
+    if (v.ai){ updateEnemyAI(v, dt); continue; }
     if (v.dummy){
       // practice ship: wander between random waypoints, banking gently toward each
       v.wpT -= dt; if (v.wpT <= 0 || v.g.position.distanceToSquared(v.wp) < 2500){ v.wp = randInSphere(R*0.6); v.wpT = 4 + Math.random()*6; }
@@ -234,7 +236,7 @@ function update(dt){
   for (const b of bullets){
     if (b.enemy || b.life <= 0) continue;
     const bp = b.g.position;
-    for (const v of viruses){ if (v.hp > 0 && bp.distanceToSquared(v.g.position) < 81){ b.life = 0; v.hp -= b.dmg || 1; SFX.hit(); burst(bp,'#f9f',4,20,0.3); if (v.hp <= 0) killVirus(v); break; } }
+    for (const v of viruses){ if (v.hp > 0 && bp.distanceToSquared(v.g.position) < (v.r2 || 81)){ b.life = 0; v.hp -= b.dmg || 1; SFX.hit(); burst(bp,'#f9f',4,20,0.3); if (v.hp <= 0) killVirus(v); break; } }
     if (b.life <= 0) continue;
     for (const ic of icons){
       if (ic.dead || bp.distanceToSquared(ic.g.position) > 196) continue;
@@ -253,9 +255,9 @@ function update(dt){
     }
   }
   const fw = P.alive && P.pw.firewall > 0;
-  if (P.alive) for (const b of bullets){ if (b.enemy && b.life > 0 && b.g.position.distanceToSquared(P.pos) < (fw ? 121 : 25)){ b.life = 0; damage(12); burst(b.g.position, fw ? '#c084fc' : '#f55', 8, 25, 0.4); } }
+  if (P.alive) for (const b of bullets){ if (b.enemy && b.life > 0 && b.g.position.distanceToSquared(P.pos) < (fw ? 121 : (b.hr2 || 25))){ b.life = 0; damage(b.dmg || 12); burst(b.g.position, fw ? '#c084fc' : '#f55', 8, 25, 0.4); } }
   for (const v of viruses){
-    if (v.hp <= 0 || v.dummy) continue;
+    if (v.hp <= 0 || v.dummy || v.ai) continue;
     for (const ic of icons){ if (!ic.dead && !ic.infected && v.g.position.distanceToSquared(ic.g.position) < 256){
       ic.infected = true; ic.hp = 3; ic.shootT = 1.5; v.hp = 0; ic.glow.material.color.set(0xff2040);
       burst(ic.g.position, '#f35', 20, 35); msg('INFECTED: ' + short(ic.f.name), ic.g.position, '#f57'); SFX.infect(); break; } }
