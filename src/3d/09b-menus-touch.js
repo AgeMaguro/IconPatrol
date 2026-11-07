@@ -1,60 +1,8 @@
-// ---------- input ----------
-const keys = {};
-const KEYMAP = {ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',Space:'fire',ShiftLeft:'boost',ShiftRight:'boost'};
-addEventListener('keydown', e => {
-  if (e.code==='Escape' && settingsOpen && G.state !== 'play'){ closeSettings(); return; }
-  if (KEYMAP[e.code]){ keys[KEYMAP[e.code]] = true; if (G.state==='play') e.preventDefault(); }
-  if (G.state==='play'){
-    if (e.code==='KeyP' || e.code==='Escape'){ if (settingsOpen) closeSettings(); else G.paused = !G.paused; }
-  }
-  if (e.code==='KeyM'){ muted = !muted; lsSet('iconpatrol.muted', muted?'1':'0'); renderSettings(); }
-});
-addEventListener('keyup', e => { if (KEYMAP[e.code]) keys[KEYMAP[e.code]] = false; });
-addEventListener('blur', () => { for (const k in keys) keys[k]=false; if (G.state==='play') G.paused = true; });
-
-// ---------- overlays ----------
-const $ = id => document.getElementById(id);
-function hideAll(){ ['title','map','end','settings','pause','hangar'].forEach(id => $(id).classList.remove('show')); settingsOpen = null; setNav(null); }
-
-// ---------- settings + pause menus ----------
-const IN_APP = /IconPatrolApp/.test(navigator.userAgent);
-if (IN_APP) document.body.classList.add('inapp');
-var settingsOpen = null, pauseShown = false;   // var: read by renderSettings() during early setup
-function settingItems(){
-  const items = [];
-  items.push({lab:'Auto-fire', desc:'Touch screens: fires when a virus or infected icon is lined up.', val:() => TC.auto ? 'On' : 'Off', act:() => { TC.auto = !TC.auto; lsSet('iconpatrol.autofire', TC.auto ? '1' : '0'); const ab = document.getElementById('tAuto'); if (ab) ab.textContent = 'AUTO-FIRE ' + (TC.auto ? 'ON' : 'OFF'); }});
-  items.push({lab:'Sound', desc:'Key M.', val:() => muted ? 'Off' : 'On', act:() => { muted = !muted; lsSet('iconpatrol.muted', muted?'1':'0'); }});
-  return items;
-}
-function renderSettings(){
-  const list = document.getElementById('setList'); if (!list || !settingsOpen) return;
-  const focusedIdx = navEl ? [...list.querySelectorAll('button')].indexOf(navEl) : -1;
-  list.innerHTML = '';
-  for (const it of settingItems()){
-    const row = document.createElement('div'); row.className = 'setrow';
-    row.innerHTML = `<div class="lab">${it.lab}<small>${it.desc}</small></div>`;
-    const b = document.createElement('button'); b.className = 'alt'; b.textContent = it.val();
-    b.onclick = () => { it.act(); renderSettings(); beep(660,0.05,'triangle',0.04); };
-    row.appendChild(b); list.appendChild(row);
-  }
-  if (focusedIdx >= 0){ const bs = list.querySelectorAll('button'); if (bs[focusedIdx]) setNav(bs[focusedIdx]); }
-}
-function openSettings(from){
-  settingsOpen = from;
-  if (from === 'title') $('title').classList.remove('show');
-  $('pause').classList.remove('show');
-  renderSettings(); $('settings').classList.add('show'); setNav(null); navFirst();
-}
-function closeSettings(){
-  const from = settingsOpen; settingsOpen = null; $('settings').classList.remove('show'); setNav(null);
-  if (from === 'title') showTitle();
-  else pauseShown = false;   // pause menu comes back on the next sync
-}
 function syncMenus(){
   const want = G.state === 'play' && G.paused && !settingsOpen;
   if (want !== pauseShown){
     pauseShown = want; $('pause').classList.toggle('show', want);
-    if (want){ setNav(null); navFirst(); }
+    if (want){ setNav(null); navFirst(); unlockMouse(); }
   }
 }
 // Android back button (the app calls this): settings -> back, playing -> pause/resume, map -> title, title -> exit
@@ -64,7 +12,7 @@ window.onBack = () => {
   if (G.state === 'map' || G.state === 'end' || G.state === 'hangar'){ showTitle(); return true; }
   return false;
 };
-function abortToMap(){ if (G.state !== 'play' || G.lives < 0) return; if (G.cur && G.cur._finish){ timers = []; G.cur._finish(); return; } timers = []; if (G.cur) G.cur._waiting = false; showMap(); }
+function abortToMap(){ if (G.state !== 'play' || G.lives < 0) return; if (G.cur && G.cur.free){ timers = []; showTitle(); return; } if (G.cur && G.cur._finish){ timers = []; G.cur._finish(); return; } timers = []; if (G.cur) G.cur._waiting = false; showMap(); }
 
 // ---------- touch controls (Android / phones / tablets) ----------
 const TOUCH_IS = !!((window.matchMedia && matchMedia('(pointer: coarse)').matches) || ('ontouchstart' in window));
@@ -97,6 +45,10 @@ function buildFromPicked(list){
     const off = () => { TC[k] = false; el.classList.remove('down'); };
     el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('lostpointercapture', off);
   });
+  $('tFlight').addEventListener('pointerdown', e => { e.preventDefault(); cycleFlight(); });
+  $('tView').addEventListener('pointerdown', e => { e.preventDefault(); toggleView(); });
+  document.querySelector('.tb[data-k="msl"]').addEventListener('pointerdown', () => { TC.mslTap = true; });
+  $('tHud').addEventListener('pointerdown', e => { e.preventDefault(); cycleHud(); }); showHud();
   $('tPause').addEventListener('pointerdown', e => { e.preventDefault(); if (G.state === 'play') G.paused = !G.paused; });
   $('tMap').addEventListener('pointerdown', e => { e.preventDefault(); abortToMap(); });
   const ab = $('tAuto'), showAuto = () => ab.textContent = 'AUTO-FIRE ' + (TC.auto ? 'ON' : 'OFF'); showAuto();
@@ -125,5 +77,4 @@ function buildFromPicked(list){
     } catch(_){ toast('Fullscreen isn’t allowed here.'); }
   };
 })();
-
 

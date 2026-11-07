@@ -5,15 +5,20 @@ ROOT = os.path.dirname(SRC)
 # The JS parts are glued back into ONE script per mode (plain text join: no modules, no wrappers),
 # so the game's scope and the launcher below work exactly as with the old single-file sources.
 MODES = {
-  '2d': dict(css=['2d/style.css'], markup='2d/markup.html', js=[
-    '2d/01-setup.js', '2d/02-storage-files.js', '2d/03-state-ships-hangar.js', '2d/04-input-menus-touch.js',
-    '2d/05-gamepad-updates.js', '2d/06-update.js', '2d/07-draw.js', '2d/08-feed.js', '2d/09-hud-loop.js']),
-  '3d': dict(css=['3d/style.css'], markup='3d/markup.html', js=[
-    '3d/01-setup.js', '3d/02-storage-audio.js', '3d/03-files-drives.js', '3d/04-upgrades-ships.js',
+  '2d': dict(css=['2d/style-a.css', 'shared/menus.css', '2d/style-b.css'], markup='2d/markup.html', js=[
+    '2d/01-setup.js', '2d/02-storage-files.js', '2d/03a-state.js', 'shared/ships.js', '2d/03b-upgrades-hangar.js',
+    '2d/04a-input-settings.js', 'shared/settings.js', '2d/04b-menus-touch.js',
+    '2d/05a-gamepad-map.js', 'shared/buttons-updates.js', '2d/05b-pause-buttons.js',
+    '2d/06-update.js', '2d/07-draw.js', 'shared/feed.js', '2d/09-hud-loop.js']),
+  '3d': dict(css=['3d/style-a.css', 'shared/menus.css', '3d/style-b.css'], markup='3d/markup.html', js=[
+    '3d/01-setup.js', '3d/02-storage-audio.js', '3d/03-files-drives.js',
+    '3d/04a-state.js', 'shared/ships.js', '3d/04b-upgrades.js',
     '3d/05-helpers-navball.js', '3d/06-state-hangar.js', '3d/07-freeflight.js', '3d/08-input.js',
-    '3d/09-menus-touch.js', '3d/10-throttle-updates.js', '3d/11-asteroids.js', '3d/12-hazards.js',
-    '3d/13-hazards-update.js', '3d/14-combat-missiles.js', '3d/15-flight-aim.js', '3d/16-update.js',
-    '3d/17-camera-cockpit.js', '3d/18-feed.js', '3d/19-hud.js', '3d/20-loop.js']),
+    '3d/09a-overlays-settings.js', 'shared/settings.js', '3d/09b-menus-touch.js',
+    '3d/10a-throttle-map.js', 'shared/buttons-updates.js', '3d/10b-pause-buttons.js',
+    '3d/11-asteroids.js', '3d/12-hazards.js', '3d/13-hazards-update.js', '3d/14-combat-missiles.js',
+    '3d/15-flight-aim.js', '3d/16-update.js', '3d/17-camera-cockpit.js', 'shared/feed.js',
+    '3d/19-hud.js', '3d/20-loop.js']),
 }
 read = lambda p: open(os.path.join(SRC, p)).read()
 def mode_parts(m):
@@ -25,6 +30,9 @@ def mode_parts(m):
     assert '<script' not in markup and '</style' not in style, m
     return style, markup, js
 three = read(os.path.join('vendor', 'three.min.js')).replace('</script', '<\\/script')
+used = {p for m in MODES.values() for p in m['css'] + [m['markup']] + m['js']}
+on_disk = {d + '/' + f for d in ('2d', '3d', 'shared') for f in os.listdir(os.path.join(SRC, d))}
+assert on_disk <= used, 'part file not in MODES: ' + str(sorted(on_disk - used))
 s2, m2, js2 = mode_parts('2d')
 s3, m3, js3 = mode_parts('3d')
 SW = lambda cur: ('<div class="modeSw">GAME MODE '

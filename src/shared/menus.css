@@ -1,0 +1,47 @@
+  input[type=file]{display:none}
+  #pause,#settings{z-index:8}
+  .panel.wide{width:min(920px,94vw)}
+  .hangar{display:grid;grid-template-columns:minmax(220px,300px) 1fr;gap:16px;align-items:start}
+  @media (max-width:640px){.hangar{grid-template-columns:1fr}}
+  .shipList{display:flex;flex-direction:column;gap:7px}
+  .shipCard{display:flex;align-items:center;gap:10px;text-align:left;font-weight:normal;font-size:12px;color:#cfeaff;background:#0a1a33;border:1px solid #2af4;box-shadow:none;padding:4px 10px}
+  .shipCard canvas{width:70px;height:40px;flex:none}
+  .shipCard b{display:block;font-size:15px}
+  .shipCard small{color:#8ab}
+  .shipCard.sel{border-color:#5ff;background:#0c2a44;box-shadow:0 0 14px #0ff5}
+  #shipPrev{display:block;width:100%;max-width:440px;aspect-ratio:36/20;background:radial-gradient(#0c2240,#040814 70%);border:1px solid #2af3;border-radius:8px}
+  #hangar .btns{margin:14px 0 0} #hangar .btns button{flex:1;white-space:nowrap}
+  @media (max-height:520px){
+    #hangar .panel{padding:10px 16px;max-height:100vh;max-height:100dvh;overflow:hidden} #hangar h2{margin:0 0 6px;font-size:17px}
+    .hangar{grid-template-columns:190px 1fr;gap:14px} .shipList{gap:4px}
+    .shipCard{padding:2px 8px} .shipCard canvas{width:46px;height:26px} .shipCard b{font-size:13px} .shipCard small{display:none}
+    .shipHead{display:grid;grid-template-columns:minmax(0,190px) 1fr;column-gap:14px;align-items:center;margin-bottom:2px}
+    #shipPrev{grid-row:1/3;max-width:190px} #shipName{margin:0;font-size:20px;align-self:end} .tagl{margin:2px 0 0;align-self:start} #shipDesc{display:none}
+    .statrow{margin:2px 0;font-size:11.5px} .statbar{height:8px}
+    #hangar .btns{margin-top:8px;gap:8px} #hangar .btns button{padding:9px 10px;font-size:14px}
+  }
+  @media (max-height:380px){ #shipPrev{max-width:150px} .shipHead{grid-template-columns:minmax(0,150px) 1fr} .statrow{margin:1px 0} }
+  #shipName{margin:8px 0 0;font-size:24px;letter-spacing:2px}
+  .tagl{margin:0 0 6px;color:#9cd;font-size:13px}
+  .statrow{display:grid;grid-template-columns:84px 1fr 48px;align-items:center;gap:8px;font-size:12px;color:#9bc;margin:5px 0}
+  .statbar{height:9px;background:#173048;border-radius:5px;overflow:hidden}
+  .statbar i{display:block;height:100%}
+  .statrow .v{text-align:right;color:#cfeaff}
+
+  .panel.narrow{width:min(470px,92vw)}
+  .menu{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+  .menu button{font-size:16px;padding:13px 18px}
+  .setlist{display:flex;flex-direction:column;margin:4px 0 8px}
+  .setrow{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:10px 0;border-bottom:1px solid #2af2}
+  .setrow .lab{font-size:14px;color:#cfeaff}
+  .setrow .lab small{display:block;color:#7ab;font-size:11px;margin-top:2px;line-height:1.35}
+  .setrow button{min-width:150px;font-size:13px;padding:9px 12px}
+  html body.inapp .webOnly{display:none !important}
+  .appOnly{display:none !important}
+  html body.inapp .appOnly{display:revert !important}
+  html body.inapp button.appOnly{display:inline-block !important}
+  .pcOnly{display:none !important} html body.pcapp .pcOnly{display:inline-block !important}
+  html body.pcapp #updBtn{display:inline-block !important} html body.pcapp #updNote{display:block !important}   /* PC app: updater, folder scan stays */
+  #updNote{color:#9cd;font-size:12px;margin:-6px 0 6px}
+  #updNote.hot{color:#fbbf24}
+  #updBtn.hot{background:#fbbf24;color:#231;border-color:#fbbf24;box-shadow:0 0 14px #fbbf2488}
