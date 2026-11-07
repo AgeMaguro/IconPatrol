@@ -11,6 +11,12 @@ When a new build replaces it, the old APK is saved automatically to `past-versio
 - `window.onBack()`, `window.__appPaths`, the `inode/directory` accept marker and `IconPatrolApp` user agent:
   the Android wrapper depends on them.
 
+## 1.0.41 - 2026-11-06 (source refactor, no gameplay change)
+- `src/game2d.html` and `src/game3d.html` are split into small part files in `src/2d/`, `src/3d/` and `src/shared/`
+  (see `src/MAP.md`). `build.py` joins them back into one script per mode, in the same order as before.
+- The built `IconPatrol.html` is byte-for-byte the same as 1.0.40's (md5 `3d3c2ba725606d9f2d717488effe2e01`), so
+  the game plays exactly the same; this build only exists because the source changed.
+
 ## 1.0.40 - 2026-11-06
 - 3D sectors now have a Sector Gate (`makeExitGate` / `openExitGate` / `updateExitGate` / `drawExitMarker` in
   game3d.html, kept in `haz.exit`). You start inside it, nose toward the middle of the sector (~30° off the Bin).

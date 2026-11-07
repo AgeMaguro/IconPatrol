@@ -16,9 +16,20 @@ first-person cockpit, throttle, flight assist modes).
 Files you scan or pick never leave the device. The app has no internet permission.
 
 ## Editing (for Claude)
-- Source is in `src/`. Never hand-edit `IconPatrol.html` or `app/src/main/assets/index.html`; edit
-  `src/game2d.html` (2D mode) or `src/game3d.html` (3D mode), then run `python3 src/build.py`.
-  The build combines both modes plus `src/vendor/three.min.js` (three.js r149, MIT) into one file and writes it to
+- Source is in `src/`. Never hand-edit `IconPatrol.html` or `app/src/main/assets/index.html`; edit the part files,
+  then run `python3 src/build.py` (the only build command).
+- **Start with `src/MAP.md`**: every part file, its line count and the functions/constants in it. Open only the
+  part you're changing (grep, then read just that range). The build regenerates MAP.md each time.
+  - `src/2d/` = 2D mode, `src/3d/` = 3D mode: `style-*.css`, `markup.html`, numbered `*.js` parts.
+  - `src/shared/` = code that is textually identical in both modes (ship table and outlines, settings menu
+    rendering, folder-scan/app-update/menu-button glue, collected-icons feed, menu CSS). Editing a shared file
+    changes BOTH modes. If a change should only affect one mode, move that block back into the mode's own part
+    at the same spot (and update `MODES` in build.py).
+  - `MODES` in `build.py` lists each mode's parts in order. The JS parts are joined as plain text into ONE script
+    per mode (no ES modules, no wrapper functions): the first part opens the game's `(() => {` scope and the last
+    closes it, so all parts share one scope and order matters for `const`/`let`. New part files must be added to
+    `MODES` (the build fails if a file in `2d/`, `3d/` or `shared/` isn't listed).
+- The build combines both modes plus `src/vendor/three.min.js` (three.js r149, MIT) into one file and writes it to
   both places.
 - One-file launcher (in `src/build.py`): only the chosen mode is mounted; switching mode tears the old one down
   in place (no page reload, because Android `content://` files and app previews can't reload).
